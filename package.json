@@ -1,0 +1,22 @@
+{
+  "name": "wsAgent",
+  "version": "1.0.0",
+  "description": "just for fun",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.17.1",
+    "redis": "^2.8.0",
+    "socket.io": "^2.2.0",
+    "uuid": "^3.3.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "wsAgent"
+  ],
+  "author": "dingusxp",
+  "license": "MIT"
+}

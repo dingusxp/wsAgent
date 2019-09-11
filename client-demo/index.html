@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="format-detection" content="email=no" />
+        <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0"
+            name="viewport">
+        <title>Simple Chatroom</title>
+        <link rel="icon" href="data:image/ico;base64,aWNv">
+    </head>
+    <body style="text-align: center;">
+        <div style="margin: 0 auto; width: 900px;">
+            <div>
+                <h1 style="font-size: 16px; line-height: 30px;">简易聊天室</h1>
+            </div>
+            <div style="text-align: left;">
+                <div id="users">
+                </div>
+                <div id="message" style="height: 600px; overflow-y: auto; background-color: aliceblue;">
+                </div>
+                <div style="padding: 8px 0;">
+                    <input type="text" maxlength="255" placeholder="请输入聊天内容，按Enter提交" id="content" style="width: 320px;">
+                    <button type="button" id="btn-submit">提交</button>
+                </div>
+            </div>
+        </div>
+        <script src="https://cdn.bootcss.com/socket.io/2.0.4/socket.io.js"></script>
+        <script src="./client.js"></script>
+        <script type="text/javascript">
+            
+            const agent = new Agent('ws://127.0.0.1:8888');
+            const room = "null98";
+            const randId = (10000 + parseInt(Math.random() * 1000000000) % 90000);
+            const user = {
+                userId: randId,
+                name: "random #" + randId
+            };
+
+            agent.setMessageHandler("show", function(data) {
+                console.log(data);
+                
+                const content = "<p style=\"padding: 5px 10px; border-bottom: #ccc 1px dashed;\">" +
+                                "  <em>" + (data.name === user.name ? "我" : data.name) + " : </em>" +
+                                "  <span>" + data.words + "</span>" +
+                                "</p>";
+                const elem = document.createElement("div");
+                elem.innerHTML = content;
+                const $msg = document.getElementById("message");
+                $msg.appendChild(elem);
+                $msg.scrollTop = $msg.scrollHeight;
+            });
+            agent.subscribeChannel(room);
+            agent.auth(user);
+
+            const speak = function() {
+                const words = document.getElementById("content").value;
+                const param = {
+                    channelName: room,
+                    name: user.name,
+                    words: words
+                };
+                document.getElementById("content").value = "";
+                agent.query("speak", param);
+            };
+            document.getElementById("content").onkeydown = function(e) {
+                e = e || event;
+                if (e.keyCode === 13) {
+                    speak();
+                }
+            };
+            document.getElementById('btn-submit').onclick = function() {
+                speak();
+            };
+        </script>
+    </body>
+</html>
