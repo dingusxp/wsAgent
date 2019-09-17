@@ -28,7 +28,7 @@
         <script src="https://cdn.bootcss.com/socket.io/2.0.4/socket.io.js"></script>
         <script src="./client.js"></script>
         <script type="text/javascript">
-            const agent = new Agent('ws://129.204.30.59:80');
+            const agent = new Agent('ws://127.0.0.1:8888');
             const room = "null98";
             const randId = (10000 + parseInt(Math.random() * 1000000000) % 90000);
             const user = {
@@ -47,8 +47,6 @@
                 $msg.appendChild(elem);
                 $msg.scrollTop = $msg.scrollHeight;
             });
-            agent.subscribeChannel(room);
-            agent.auth(user);
 
             const speak = function() {
                 const words = document.getElementById("content").value;
@@ -60,15 +58,28 @@
                 document.getElementById("content").value = "";
                 agent.query("speak", param);
             };
-            document.getElementById("content").onkeydown = function(e) {
-                e = e || event;
-                if (e.keyCode === 13) {
-                    speak();
-                }
-            };
-            document.getElementById('btn-submit').onclick = function() {
-                speak();
-            };
+            
+            // register && subscribe
+            agent.auth(user, function() {
+                agent.subscribeChannel(room, function() {
+                
+                    // start chat 
+                    document.getElementById("content").onkeydown = function(e) {
+                        e = e || event;
+                        if (e.keyCode === 13) {
+                            speak();
+                        }
+                    };
+                    document.getElementById('btn-submit').onclick = function() {
+                        speak();
+                    };
+                    
+                    setInterval(function() {
+                        document.getElementById("content").value = "time is :" + (+ new Date());
+                        speak();
+                    }, 100);
+                });
+            });
         </script>
     </body>
 </html>
