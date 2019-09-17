@@ -1,2 +1,2 @@
 # wsAgent
-websocket server with agent/channel service
+websocket server with agent service
