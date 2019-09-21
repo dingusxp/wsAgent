@@ -17,6 +17,6 @@ module.exports = {
     logger: {},
     
     // server context refresh time interval
-    serverQpsStatInterval: 5
+    serverContextRefreshInterval: 5
     
 };

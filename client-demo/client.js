@@ -3,8 +3,8 @@
  * query priority
  */
 const QUERY_PRIORITIES = {
-    LEVEL_IMMIDIATE: 0,
-    // LEVEL_QUEUE: 1,
+    LEVEL_IMMIDIATE: 1,
+    // LEVEL_QUEUE: 2,
     // LEVEL_UNNESSARY: 9
 };
 
@@ -42,9 +42,16 @@ const fixServerUrl = function(serverUrl) {
 
 // =====================  agent.js  ========================//
 /**
- * default ping interval
+ * 校对时间间隔（单位：s）
  */
-const DEFAULT_PING_INTERVAL = 30000;
+const DEFAULT_TIME_CALIBRATION_INTERVAL = 300;
+
+// query timeout（单位：s）
+const DEFAULT_QUERY_ACK_TIMEOUT = 50;
+const DEFAULT_QUERY_RESPONSE_TIMEOUT = 30;
+
+// priority
+const DEFAULT_QUERY_PRIORITY = Protocol.QUERY_PRIORITIES.LEVEL_IMMIDIATE;
 
 // agent part
 let agentInstances = {};
@@ -59,74 +66,124 @@ let Agent = function(agentServer) {
     agentInstances[agentServer] = agent;
 
     // connect
-    let socket = io.connect(agentServer);
-
-    // ping
-    agent.connectStatus = "connecting";
-    agent.syncTime = 0;
-    agent.serverTime = 0;
-    agent.serverId = null;
-    agent.getTime = function() {
-        return (+new Date) - agent.syncTime + agent.serverTime;
+    const socket = io.connect(agentServer);
+    
+    // network latency
+    let latency = 0;
+    agent.getLatency = function() {
+        return latency;
     };
-    let pingInterval = DEFAULT_PING_INTERVAL;
-    socket.on("_ack", function(data) {
-
-        // server id 发生了变化！
-        if (null !== agent.serverId && agent.serverId !== data.serverId) {
-
-            // 重连
-            // agent.connectStatus = "disconnected";
-            // socket.disconnect();
-        }
-
-        agent.connectStatus = "connected";
-        agent.syncTime = (+new Date);
-        agent.serverTime = data.time;
-        setTimeout(function() {
-            socket.emit("_ping", {});
-        }, pingInterval);
+    
+    // time calibration
+    const clock = {
+        syncTime: 0,
+        serverTime: 0,
+        diffTime: 0
+    };
+    agent.getServerTime = function() {
+        return (+new Date) + clock.diffTime/* + latency*/;
+    };
+    agent.timeCalibrationInterval = DEFAULT_TIME_CALIBRATION_INTERVAL;
+    const sendTimeCalibration = function() {
+        clock.syncTime = (+new Date);
+        socket.emit("_time", {});
+    };
+    socket.on("_time", function(data) {
+        const now = (+new Date);
+        clock.diffTime = data.time - now;
+        latency = (now - syncTime) / 2;
+        setTimeout(sendTimeCalibration, agent.timeCalibrationInterval * 1000);
     });
+    // 连接后 立即做一次对时
+    sendTimeCalibration();
 
     // common query
     let queryId = 0;
-    let querySet = {};
-    agent.query = function(action, param, callback, priority = 0, context = {}) {
+    const querySet = {};
+    agent.query = function(action, param, responseCallback, timeoutCallback, option = {}, context = {}) {
 
         queryId++;
-        let queryInfo = {
+        const queryInfo = {
             id: queryId,
             action: action,
             param: param,
-            time: agent.getTime(),
-            priority: priority,
+            time: agent.getServerTime(),
+            priority: option.priority || DEFAULT_QUERY_PRIORITY,
+            option: option,
             context: context
         };
+        socket.emit("query", queryInfo);
+        
         querySet[queryId] = {
             query: queryInfo,
-            status: "new",
-            callback: typeof callback === "function" ? callback : null
+            status: "sent",
+            queryTime: (+ new Date),
+            queryAt: queryInfo.time,
+            ackAt: 0,
+            responseAt: 0,
+            responseCallback: typeof responseCallback === "function" ? responseCallback : null,
+            timeoutCallback: typeof timeoutCallback === "function" ? timeoutCallback : null
         };
-        socket.emit("query", queryInfo);
-        return;
+        const ackTimeout = option.ackTimeout || DEFAULT_QUERY_ACK_TIMEOUT;
+        const responseTimeout = option.responseTimeout || DEFAULT_QUERY_RESPONSE_TIMEOUT;
+        checkQueryTimeout(QueryId, ackTimeout, responseTimeout);
+    };
+    socket.on('_ack', function(data) {
+        const queryId = data.queryId;
+        if (!querySet[queryId]) {
+            return;
+        }
+        querySet[queryId].status = "acked";
+        querySet[queryId].ackAt = (+ new Date);
+
+        // update latency
+        latency = (+ new Date) - querySet[queryId].queryTime;
+    });
+    // 请求超时处理
+    const queryTimeoutCallback = function(queryId) {
+        const timeoutCallback = querySet[queryId].timeoutCallback;
+        if (!timeoutCallback) {
+            return;
+        }
+        return timeoutCallback.call(querySet[queryId], {});
+    };
+    const checkQueryTimeout = function(queryId, ackTimeout, responseTimeout) {
+        
+        // ack timeout
+        setTimeout(function() {
+            if (querySet[queryId].ackAt > 0) {
+                return;
+            }
+            return queryTimeoutCallback(queryId);
+        }, ackTimeout * 1000);
+        
+        // response timeout
+        setTimeout(function() {
+            if (querySet[queryId].responseAt > 0) {
+                delete querySet[queryId];
+                return;
+            }
+            queryTimeoutCallback(queryId);
+            delete querySet[queryId];
+        }, responseTimeout * 1000);
     };
     
     // auth: check login && bind user on server
-    agent.auth = function(userAuth, callback) {
+    agent.auth = function(userAuth, callback, onFailed) {
         
-        return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.AUTH, userAuth, callback);
+        return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.AUTH, userAuth, callback, onFailed);
     };
     
     // subscribe channel
-    agent.subscribeChannel = function(channelName, callback) {
+    agent.subscribeChannel = function(channelName, callback, onFailed) {
         
-        return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.SUBSCRIBE, channelName, callback);
+        return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.SUBSCRIBE, channelName, callback, onFailed);
     };
     
     // unsubscribe channel
-    agent.unsubscribeChannel = function(channelName, callback) {
+    agent.unsubscribeChannel = function(channelName, callback, onFailed) {
 
-        return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.UNSUBSCRIBE, channelName, callback);
+        return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.UNSUBSCRIBE, channelName, callback, onFailed);
     };
 
     // handle message
@@ -148,21 +205,24 @@ let Agent = function(agentServer) {
             console.log("bad message: " + message);
             return false;
         }
-        
-        let context = {};
+
+        // _ack
+        socket.emit("_ack", {messageId: message.id});
+
+        const context = {};
         context.agent = agent;
         context.message = message;
-        let queryId = message.context.queryId;
+        const queryId = message.context.queryId;
         let queryCallback = null;
         if (queryId && querySet[queryId]) {
             context.query = querySet[queryId].query;
-            queryCallback = querySet[queryId].callback
-            delete querySet[queryId];
+            queryCallback = querySet[queryId].responseCallback;
+            querySet[queryId].status = "responsed";
+            querySet[queryId].responseAt = (+ new Date);
         }
 
-        // callback
+        // internal message type: _callback
         if (message.type === Protocol.INTERNAL_MESSAGE_TYPIES.CALLACK) {
-            let queryId = message.context.queryId;
             if (queryCallback) {
                 queryCallback.call(context, message.data);
             }

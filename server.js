@@ -13,7 +13,7 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const fs = require('fs');
 const events = require('events');
-const uuid = require('uuid');
+// const uuid = require('uuid');
 const os = require('os');
 
 const Protocol = require("./lib/protocol.js");
@@ -36,46 +36,95 @@ const clientSockets = {};
 const userClients = {};
 
 // server context
-const serverId = uuid.v1();
 const serverIp = Config.getConfig("serverIp") || "127.0.0.1";
 const serverPort = Config.getConfig("serverPort") || 8888;
+const serverHost = serverIp + ":" + serverPort;
 const serverRunAt = (+new Date);
+const serverId = serverHost;
 const serverContext = {
+    systemOS: os.arch() + " with " + os.cpus().length + " core(s)",
+    systemRuntime: Util.formatNumber(os.uptime(), Util.NUMBER_FORMATS.TIMECOST),
+    totalMemory: Util.formatNumber(os.totalmem(), Util.NUMBER_FORMATS.STORAGE),
+    freeMemory: Util.formatNumber(os.freemem(), Util.NUMBER_FORMATS.STORAGE),
+    systemLoad: os.loadavg(),
+    
+    serverRunAt: Util.getIsoTime(),
+    serverRuntime: 0,
     serverId,
     serverRunAt,
     serverIp,
     serverPort,
-    serverHost: serverIp + ":" + serverPort,
+    serverHost,
+    
     clientSockets,
     userClients,
-    socketIo: io
+    socketIo: io,
+    queryCount: 0,
+    queryQPS: 0,
+    pushCount: 0,
+    pushQPS: 0,
+    clientCount: 0,
+    userCount: 0,
+    
+    lastRefreshAt: 0
 };
+
+// server context refresh
+let qpsLastQueryCount = 0;
+let qpsLastPushCount = 0;
+const refreshServerContext = function() {
+    
+    const time = (+ new Date);
+    // 更新时间间隔若小于 1s，直接返回
+    if (time - serverContext.lastRefreshAt < 1000) {
+        return;
+    }
+    serverContext.lastRefreshAt = time;
+    
+    // 更新 qps
+    serverContext.queryQPS = parseInt((serverContext.queryCount - qpsLastQueryCount) / serverContextRefreshInterval);
+    qpsLastQueryCount = serverContext.queryCount;
+    
+    serverContext.pushQPS = parseInt((serverContext.pushCount - qpsLastPushCount) / serverContextRefreshInterval);
+    qpsLastPushCount = serverContext.pushCount;
+    
+    // server info
+    serverContext.systemRuntime = Util.formatNumber(os.uptime(), Util.NUMBER_FORMATS.TIMECOST);
+    serverContext.freeMemory = Util.formatNumber(os.freemem(), Util.NUMBER_FORMATS.STORAGE);
+    serverContext.systemLoad = os.loadavg();
+    serverContext.serverRuntime = Util.formatNumber(parseInt(((+ new Date) - serverRunAt) / 1000), Util.NUMBER_FORMATS.TIMECOST);
+
+    // client count
+    serverContext.userCount = Object.keys(userClients).length;
+    serverContext.clientCount = Object.keys(clientSockets).length;
+};
+const serverContextRefreshInterval = Config.getConfig("serverContextRefreshInterval") || 10;
+setInterval(refreshServerContext, serverContextRefreshInterval * 1000);
+refreshServerContext();
 
 // ws service
 // const maxConnectionCount = Config.getConfig("maxConnectionCount") || 1000;
 io.on('connection', function(socket) {
 
     // clientId
-    const clientId = serverId + "_" + socket.id;
+    const clientId = socket.id + '@' + serverId;
     const socketContext = {
         clientId: clientId,
         socket: socket,
         connectedAt: (+new Date),
         lastActiveAt: (+new Date),
-        userId: null
+        userId: null,
+        latency: 0
     };
     clientSockets[clientId] = socketContext;
     log.info(clientId + ": new connect");
 
     // methods listen
-    // ping
-    socket.on("_ping", function(data) {
-
-        // log.info(clientId + ": send ping");
+    // _time
+    socket.on("_time", function(data) {
 
         socketContext.lastActiveAt = (+new Date);
         socket.emit("_ack", {
-            serverId: serverId,
             time: (+new Date)
         });
     });
@@ -83,7 +132,7 @@ io.on('connection', function(socket) {
     // ack
     socket.on("_ack", function(data) {
 
-        // log.info(clientId + ": send ack");
+        // data.messageId， 根据计算延迟
 
         socketContext.lastActiveAt = (+new Date);
     });
@@ -108,8 +157,11 @@ io.on('connection', function(socket) {
 
         log.info(clientId + ": send query, param=" + JSON.stringify(query));
         
-        serverStatus.queryCount++;
-        serverStatus.lastActiveAt = (+new Date);
+        serverContext.queryCount++;
+        serverContext.lastActiveAt = (+new Date);
+        
+        // _ack
+        socket.emit("_ack", {queryId: query.id});
 
         const actionName = query.action;
         if (!actionName || !actions[actionName]) {
@@ -142,12 +194,6 @@ io.on('connection', function(socket) {
             resolve(resp);
         }
     });
-
-    // ack
-    socket.emit("_ack", {
-        serverId: serverId,
-        time: (+new Date)
-    });
 });
 
 // http api
@@ -156,48 +202,22 @@ app.get('/', function(req, res) {
     res.send("OK");
 });
 
-// server status
-const serverStatus = {
-    systemOS: os.arch() + " with " + os.cpus().length + " core(s)",
-    systemRuntime: Util.formatNumber(os.uptime(), Util.NUMBER_FORMATS.TIMECOST),
-    totalMemory: Util.formatNumber(os.totalmem(), Util.NUMBER_FORMATS.STORAGE),
-    freeMemory: Util.formatNumber(os.freemem(), Util.NUMBER_FORMATS.STORAGE),
-    systemLoad: os.loadavg(),
-    serverRunAt: Util.getIsoTime(),
-    serverRuntime: 0,
-    queryCount: 0,
-    queryQPS: 0,
-    pushCount: 0,
-    pushQPS: 0,
-    clientCount: 0,
-    userCount: 0
-};
-
-// QPS 统计
-const serverQpsStatInterval = Config.getConfig("serverQpsStatInterval") || 10;
-let qpsLastQueryCount = 0;
-let qpsLastPushCount = 0;
-setInterval(function() {
-    serverStatus.queryQPS = parseInt((serverStatus.queryCount - qpsLastQueryCount) / serverQpsStatInterval);
-    qpsLastQueryCount = serverStatus.queryCount;
-    
-    serverStatus.pushQPS = parseInt((serverStatus.pushCount - qpsLastPushCount) / serverQpsStatInterval);
-    qpsLastPushCount = serverStatus.pushCount;
-}, serverQpsStatInterval * 1000);
-
 app.get('/status', function(req, res) {
-    /*
-    // server info
-    serverStatus.systemRuntime = Util.formatNumber(os.uptime(), Util.NUMBER_FORMATS.TIMECOST);
-    serverStatus.freeMemory = Util.formatNumber(os.freemem(), Util.NUMBER_FORMATS.STORAGE);
-    serverStatus.systemLoad = os.loadavg();
-    serverStatus.serverRuntime = Util.formatNumber(parseInt(((+ new Date) - serverRunAt) / 1000), Util.NUMBER_FORMATS.TIMECOST);
     
-    // client count
-    serverStatus.userCount = Object.keys(userClients).length;
-    serverStatus.clientCount = Object.keys(clientSockets).length;
-    */
-    res.send(JSON.stringify(serverStatus));
+    // 更新信息
+    refreshServerContext();
+
+    // 回显 serverContext 信息
+    let statusInfo = {};
+    for (let k in serverContext) {
+        // 过滤值为对象/数组的值
+        if (typeof serverContext === "object") {
+            continue;
+        }
+        statusInfo[k] = serverContext[k];
+    }
+    
+    res.send(JSON.stringify(statusInfo));
 });
 
 let maxPushQPS = Config.getConfig("maxPushQPS") || 1000;
@@ -212,11 +232,11 @@ app.get('/message2user', function(req, res) {
     }
     
     // 限流
-    if (serverStatus.pushQPS > maxPushQPS) {
+    if (serverContext.pushQPS > maxPushQPS) {
         res.send('max push reached');
         return;
     }
-    serverStatus.pushCount++;
+    serverContext.pushCount++;
     
     param.data = Util.json2obj(param.data);
     param.context = Util.json2obj(param.context);
@@ -242,11 +262,11 @@ app.get('/message2channel', function(req, res) {
     }
     
     // 限流
-    if (serverStatus.pushQPS > maxPushQPS) {
+    if (serverContext.pushQPS > maxPushQPS) {
         res.send('max push reached');
         return;
     }
-    serverStatus.pushCount++;
+    serverContext.pushCount++;
     
     param.data = Util.json2obj(param.data);
     param.context = Util.json2obj(param.context);
@@ -256,7 +276,6 @@ app.get('/message2channel', function(req, res) {
 
     res.send('success');
 });
-
 
 // listen
 http.listen(serverPort, function() {
