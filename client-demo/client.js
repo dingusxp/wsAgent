@@ -126,7 +126,7 @@ let Agent = function(agentServer) {
         };
         const ackTimeout = option.ackTimeout || DEFAULT_QUERY_ACK_TIMEOUT;
         const responseTimeout = option.responseTimeout || DEFAULT_QUERY_RESPONSE_TIMEOUT;
-        checkQueryTimeout(QueryId, ackTimeout, responseTimeout);
+        checkQueryTimeout(queryId, ackTimeout, responseTimeout);
     };
     socket.on('_ack', function(data) {
         const queryId = data.queryId;
@@ -151,7 +151,7 @@ let Agent = function(agentServer) {
         
         // ack timeout
         setTimeout(function() {
-            if (querySet[queryId].ackAt > 0) {
+            if (!querySet[queryId] || querySet[queryId].ackAt > 0) {
                 return;
             }
             return queryTimeoutCallback(queryId);
@@ -207,7 +207,7 @@ let Agent = function(agentServer) {
         }
 
         // _ack
-        socket.emit("_ack", {messageId: message.id});
+        socket.emit("_ack", {messageId: message.id, channelName: message.context.channelName || ""});
 
         const context = {};
         context.agent = agent;

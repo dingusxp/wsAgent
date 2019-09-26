@@ -13,142 +13,59 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const fs = require('fs');
 const events = require('events');
-// const uuid = require('uuid');
-const os = require('os');
 
 const Protocol = require("./lib/protocol.js");
 const Message = require("./lib/message.js");
 const Action = require("./lib/action.js");
-const Util = require("./lib/util.js");
 const Config = require("./lib/config.js");
+const Util = require("./lib/util.js");
 const Logger = require("./lib/logger.js");
+const Context = require("./lib/context.js");
+const Pusher = require("./lib/pusher.js");
+
+// server context
+const serverContext = Context.getServerContext();
+serverContext.socketIo = io;
 
 // logger
-const loggerConfig = Config.getConfig("logger") || {};
-const log = Logger.factory(loggerConfig);
+const log = Logger.getDefaultLogHandler();
 
 // actions for handling client query
 const actions = Action.actions;
-
-// clientId -> socketContext
-const clientSockets = {};
-// userId -> clientId
-const userClients = {};
-
-// server context
-const serverIp = Config.getConfig("serverIp") || "127.0.0.1";
-const serverPort = Config.getConfig("serverPort") || 8888;
-const serverHost = serverIp + ":" + serverPort;
-const serverRunAt = (+new Date);
-const serverId = serverHost;
-const serverContext = {
-    systemOS: os.arch() + " with " + os.cpus().length + " core(s)",
-    systemRuntime: Util.formatNumber(os.uptime(), Util.NUMBER_FORMATS.TIMECOST),
-    totalMemory: Util.formatNumber(os.totalmem(), Util.NUMBER_FORMATS.STORAGE),
-    freeMemory: Util.formatNumber(os.freemem(), Util.NUMBER_FORMATS.STORAGE),
-    systemLoad: os.loadavg(),
-    
-    serverRunAt: Util.getIsoTime(),
-    serverRuntime: 0,
-    serverId,
-    serverRunAt,
-    serverIp,
-    serverPort,
-    serverHost,
-    
-    clientSockets,
-    userClients,
-    socketIo: io,
-    queryCount: 0,
-    queryQPS: 0,
-    pushCount: 0,
-    pushQPS: 0,
-    clientCount: 0,
-    userCount: 0,
-    
-    lastRefreshAt: 0
-};
-
-// server context refresh
-let qpsLastQueryCount = 0;
-let qpsLastPushCount = 0;
-const refreshServerContext = function() {
-    
-    const time = (+ new Date);
-    // 更新时间间隔若小于 1s，直接返回
-    if (time - serverContext.lastRefreshAt < 1000) {
-        return;
-    }
-    serverContext.lastRefreshAt = time;
-    
-    // 更新 qps
-    serverContext.queryQPS = parseInt((serverContext.queryCount - qpsLastQueryCount) / serverContextRefreshInterval);
-    qpsLastQueryCount = serverContext.queryCount;
-    
-    serverContext.pushQPS = parseInt((serverContext.pushCount - qpsLastPushCount) / serverContextRefreshInterval);
-    qpsLastPushCount = serverContext.pushCount;
-    
-    // server info
-    serverContext.systemRuntime = Util.formatNumber(os.uptime(), Util.NUMBER_FORMATS.TIMECOST);
-    serverContext.freeMemory = Util.formatNumber(os.freemem(), Util.NUMBER_FORMATS.STORAGE);
-    serverContext.systemLoad = os.loadavg();
-    serverContext.serverRuntime = Util.formatNumber(parseInt(((+ new Date) - serverRunAt) / 1000), Util.NUMBER_FORMATS.TIMECOST);
-
-    // client count
-    serverContext.userCount = Object.keys(userClients).length;
-    serverContext.clientCount = Object.keys(clientSockets).length;
-};
-const serverContextRefreshInterval = Config.getConfig("serverContextRefreshInterval") || 10;
-setInterval(refreshServerContext, serverContextRefreshInterval * 1000);
-refreshServerContext();
 
 // ws service
 // const maxConnectionCount = Config.getConfig("maxConnectionCount") || 1000;
 io.on('connection', function(socket) {
 
     // clientId
-    const clientId = socket.id + '@' + serverId;
-    const socketContext = {
-        clientId: clientId,
-        socket: socket,
-        connectedAt: (+new Date),
-        lastActiveAt: (+new Date),
-        userId: null,
-        latency: 0
-    };
-    clientSockets[clientId] = socketContext;
+    const clientId = socket.id + '@' + serverContext.serverId;
+    const clientContext = Context.addClientContext(clientId, socket);
+    serverContext.clientCount++;
     log.info(clientId + ": new connect");
 
     // methods listen
     // _time
     socket.on("_time", function(data) {
 
-        socketContext.lastActiveAt = (+new Date);
+        clientContext.lastActiveAt = (+new Date);
         socket.emit("_ack", {
             time: (+new Date)
         });
     });
 
     // ack
+    const messageSet = [];
     socket.on("_ack", function(data) {
-
-        // data.messageId， 根据计算延迟
-
-        socketContext.lastActiveAt = (+new Date);
+        
+        clientContext.lastActiveAt = (+new Date);
+        Pusher.markMessageAck(clientId, data);
     });
 
     // 断开连接
     socket.on('disconnect', function() {
         
-        // delete
-        if (clientSockets[clientId]) {
-            const userId = clientSockets[clientId].userId;
-            if (userId && userClients[userId]) {
-                delete userClients[userId];
-            }
-            delete clientSockets[clientId];
-        }
-
+        Context.dropClientContext(clientId);
+        
         log.info("disconnected #" + clientId);
     });
 
@@ -167,11 +84,7 @@ io.on('connection', function(socket) {
         if (!actionName || !actions[actionName]) {
             return false;
         }
-
-        const context = { ...serverContext,
-            ...socketContext,
-            query
-        };
+        
         const resolve = function(data) {
 
             log.info(clientId + ": query handled, return=" + JSON.stringify(data));
@@ -182,12 +95,16 @@ io.on('connection', function(socket) {
             const messageContext = {
                 queryId: query.id
             };
-            socket.emit('message', Message.create(Protocol.INTERNAL_MESSAGE_TYPIES.CALLACK, data,
-                messageContext));
+            // push client message
+            socket.emit('message', );
+            const message = Message.create(Protocol.INTERNAL_MESSAGE_TYPIES.CALLACK, 
+                data,
+                messageContext);
+            Pusher.pushMessage2Client(clientId, message);
         };
 
         // allow action method return data/Promise instance
-        const resp = actions[actionName].call(context, query.param || {});
+        const resp = actions[actionName].call(clientContext, query.param || {});
         if (typeof resp === "object" && resp instanceof Promise) {
             resp.then(resolve);
         } else {
@@ -205,13 +122,13 @@ app.get('/', function(req, res) {
 app.get('/status', function(req, res) {
     
     // 更新信息
-    refreshServerContext();
+    Context.refreshServerContext();
 
     // 回显 serverContext 信息
     let statusInfo = {};
     for (let k in serverContext) {
         // 过滤值为对象/数组的值
-        if (typeof serverContext === "object") {
+        if (typeof serverContext[k] === "object") {
             continue;
         }
         statusInfo[k] = serverContext[k];
@@ -236,17 +153,14 @@ app.get('/message2user', function(req, res) {
         res.send('max push reached');
         return;
     }
-    serverContext.pushCount++;
     
     param.data = Util.json2obj(param.data);
     param.context = Util.json2obj(param.context);
     log.info('[info] request push to user: ' + JSON.stringify(param));
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     param.userIds.split(',').forEach(function(userId) {
-        const clientId = userClients[userId];
-        if (clientId) {
-            clientSockets[clientId].socket.emit('message', pushMessage);
-        }
+        const clientId = serverContext.userClients[userId];
+        Pusher.pushMessage2Client(clientId, pushMessage);
     });
     
     res.send('success');
@@ -255,8 +169,8 @@ app.get('/message2channel', function(req, res) {
 
     const param = req.query || {};
     // param: channelName=abc&type=xxx&data={encoded_json_data}&context={encoded_context_data}
-    if (typeof param.channelName === 'undefined') {
-        log.info('[warning] bad push request, no channelName given. param: ' + JSON.stringify(param));
+    if (typeof param.channelName === 'undefined' || typeof param.type === "undefined") {
+        log.info('[warning] bad push request, no channelName/type given. param: ' + JSON.stringify(param));
         res.send('fail');
         return;
     }
@@ -266,18 +180,17 @@ app.get('/message2channel', function(req, res) {
         res.send('max push reached');
         return;
     }
-    serverContext.pushCount++;
     
-    param.data = Util.json2obj(param.data);
-    param.context = Util.json2obj(param.context);
+    const data = param.data ? Util.json2obj(param.data) : {};
+    const context = param.context ? Util.json2obj(param.context) : {};
     log.info('[info] request push to channel: ' + JSON.stringify(param));
-    const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
-    io.to(param.channelName).emit("message", pushMessage);
+    const pushMessage = Message.create(param.type, param.data, param.context);
+    Pusher.pushMessage2Channel(param.channelName, pushMessage);
 
     res.send('success');
 });
 
 // listen
-http.listen(serverPort, function() {
+http.listen(serverContext.serverPort, function() {
     log.info(`agent server is ready: ws://${serverContext.serverHost}}/`);
 });

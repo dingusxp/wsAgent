@@ -1,5 +1,6 @@
 
 const Message = require("../lib/message.js");
+const Pusher = require("../lib/pusher.js");
 
 const actions = {};
 
@@ -10,8 +11,9 @@ actions.speak = function(param) {
         name: (param.name || "noname"),
         words: param.words
     };
-    // console.log('[info] ' + data.name + " says to @" + channelName + ": " + data.words);
-    this.socketIo.to(channelName).emit("message", Message.create('show', data));
+    
+    const message = Message.create('show', data);
+    Pusher.pushMessage2Channel(channelName, message);
     return false;
 };
 
