@@ -12,7 +12,6 @@ const app = require('express')();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const fs = require('fs');
-const events = require('events');
 
 const Protocol = require("./lib/protocol.js");
 const Message = require("./lib/message.js");
@@ -58,14 +57,13 @@ io.on('connection', function(socket) {
     socket.on("_ack", function(data) {
         
         clientContext.lastActiveAt = (+new Date);
-        Pusher.markMessageAck(clientId, data);
+        Pusher.markMessageAcked(clientId, data);
     });
 
     // 断开连接
     socket.on('disconnect', function() {
         
         Context.dropClientContext(clientId);
-        
         log.info("disconnected #" + clientId);
     });
 
@@ -96,7 +94,6 @@ io.on('connection', function(socket) {
                 queryId: query.id
             };
             // push client message
-            socket.emit('message', );
             const message = Message.create(Protocol.INTERNAL_MESSAGE_TYPIES.CALLACK, 
                 data,
                 messageContext);

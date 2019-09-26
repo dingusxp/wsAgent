@@ -48,6 +48,17 @@
                 $msg.appendChild(elem);
                 $msg.scrollTop = $msg.scrollHeight;
             });
+            const doLogin = function() {
+                agent.auth(user, function() {
+                    agent.subscribeChannel(room, function() {
+                        console.log(user.name + " has logined");
+                    });
+                });
+            };
+            agent.setMessageHandler("login", function() {
+                doLogin();
+            });
+            doLogin();
 
             const speak = function() {
                 const words = document.getElementById("content").value;
@@ -59,28 +70,17 @@
                 document.getElementById("content").value = "";
                 agent.query("speak", param);
             };
-            
-            // register && subscribe
-            agent.auth(user, function() {
-                agent.subscribeChannel(room, function() {
                 
-                    // start chat 
-                    document.getElementById("content").onkeydown = function(e) {
-                        e = e || event;
-                        if (e.keyCode === 13) {
-                            speak();
-                        }
-                    };
-                    document.getElementById('btn-submit').onclick = function() {
-                        speak();
-                    };
-                    
-                    // setInterval(function() {
-                    //     document.getElementById("content").value = "time is :" + (+ new Date());
-                    //     speak();
-                    // }, 100);
-                });
-            });
+            // start chat 
+            document.getElementById("content").onkeydown = function(e) {
+                e = e || event;
+                if (e.keyCode === 13) {
+                    speak();
+                }
+            };
+            document.getElementById('btn-submit').onclick = function() {
+                speak();
+            };
         </script>
     </body>
 </html>
