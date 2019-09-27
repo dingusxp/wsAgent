@@ -1,3 +1,13 @@
+
+let runMode = "browser";
+let socketIo = null;
+if (typeof io === "undefined") {
+    socketIo = require('socket.io-client');
+    runMode = "node-cli";
+} else {
+    socketIo = io;
+}
+
 // =====================  protocol.js  ========================//
 /**
  * query priority
@@ -63,11 +73,11 @@ let Agent = function(agentServer) {
         return agentInstances[agentServer];
     }
     let agent = this;
-    agentInstances[agentServer] = agent;
+    // agentInstances[agentServer] = agent;
 
     // connect
-    const socket = io.connect(agentServer);
-    
+    const socket = socketIo.connect(agentServer);
+
     // network latency
     let latency = 0;
     agent.getLatency = function() {
@@ -195,11 +205,11 @@ let Agent = function(agentServer) {
             return;
         }
         messageHandlers[type] = callback;
-        console.log("[info] registerred message type handler: " + type);
+        // console.log("[info] registerred message type handler: " + type);
     };
     socket.on("message", function(message) {
         
-        console.log("[info] receive messge: " + JSON.stringify(message));
+        // console.log("[info] receive messge: " + JSON.stringify(message));
 
         if (typeof message !== "object") {
             console.log("bad message: " + message);
@@ -240,3 +250,9 @@ let Agent = function(agentServer) {
 
     return agent;
 };
+
+if (runMode === "node-cli") {
+    module.exports = {
+        Agent
+    };
+}
