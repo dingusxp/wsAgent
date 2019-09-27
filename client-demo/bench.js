@@ -43,14 +43,14 @@ const newClient = function(i) {
     // register && subscribe
     agent.auth(user, function() {
         agent.subscribeChannel(room, function() {
-            console.log(user.name + " is ready");
+            // console.log(user.name + " is ready");
             autoSend();
         });
     });
 };
 
 let idx = 0;
-for (let i = 1; i <= 1000; i++) {
+for (let i = 1; i <= 2000; i++) {
     setTimeout(function() {
         idx++;
         newClient(idx);
