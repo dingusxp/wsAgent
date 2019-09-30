@@ -2,9 +2,9 @@
  * websocket server with agent/channel service
  * 
  * [TODO]
- * 取消 ping （依赖 socket.io 默认机制）； query 和 message 均要 _ack，上报接收信息的延迟；
+ * 取消 ping （依赖 socket.io 默认机制）； query 和 message 均要 _ack，上报接收信息的延迟；（done）
  * 增加 priority 为 队列级别 的 message；
- * 增加 datastore 机制，落地 连接信息，消息/请求 到存储，异步消费
+ * 增加 datastore 机制，落地 连接信息，消息/请求 到存储，异步消费 （half done）
  * fork 子进程分担cpu耗时操作？
  */
 
@@ -17,7 +17,6 @@ const Protocol = require("./lib/protocol.js");
 const Message = require("./lib/message.js");
 const Action = require("./lib/action.js");
 const Config = require("./lib/config.js");
-const Util = require("./lib/util.js");
 const Logger = require("./lib/logger.js");
 const Context = require("./lib/context.js");
 const Pusher = require("./lib/pusher.js");
@@ -111,6 +110,9 @@ io.on('connection', function(socket) {
 });
 
 // http api
+const bodyParser = require("body-parser");
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 app.get('/', function(req, res) {
     
     res.send("OK");
@@ -119,26 +121,16 @@ app.get('/', function(req, res) {
 app.get('/status', function(req, res) {
     
     // 更新信息
-    Context.refreshServerContext();
-
-    // 回显 serverContext 信息
-    let statusInfo = {};
-    for (let k in serverContext) {
-        // 过滤值为对象/数组的值
-        if (typeof serverContext[k] === "object") {
-            continue;
-        }
-        statusInfo[k] = serverContext[k];
-    }
+    // Context.refreshServerContext();
     
+    const statusInfo = Context.getServerStatus();
     res.send(JSON.stringify(statusInfo));
 });
 
 let maxPushQPS = Config.getConfig("maxPushQPS") || 1000;
-app.get('/message2user', function(req, res) {
+app.post('/message2user', function(req, res) {
     
-    const param = req.query || {};
-    // param: userIds=123,456&type=xxx&data={encoded_json_data}&context={encoded_context_data}
+    const param = req.body || {};
     if (typeof param.userIds === 'undefined') {
         log.info('[warning] bad push request, no userIds given. param: ' + JSON.stringify(param));
         res.send('fail');
@@ -151,37 +143,32 @@ app.get('/message2user', function(req, res) {
         return;
     }
     
-    param.data = Util.json2obj(param.data);
-    param.context = Util.json2obj(param.context);
     log.info('[info] request push to user: ' + JSON.stringify(param));
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     param.userIds.split(',').forEach(function(userId) {
         const clientId = serverContext.userClients[userId];
         Pusher.pushMessage2Client(clientId, pushMessage);
     });
-    
+
     res.send('success');
 });
-app.get('/message2channel', function(req, res) {
+app.post('/message2channel', function(req, res) {
 
-    const param = req.query || {};
-    // param: channelName=abc&type=xxx&data={encoded_json_data}&context={encoded_context_data}
+    const param = req.body || {};
     if (typeof param.channelName === 'undefined' || typeof param.type === "undefined") {
         log.info('[warning] bad push request, no channelName/type given. param: ' + JSON.stringify(param));
         res.send('fail');
         return;
     }
-    
+
     // 限流
     if (serverContext.pushQPS > maxPushQPS) {
         res.send('max push reached');
         return;
     }
     
-    const data = param.data ? Util.json2obj(param.data) : {};
-    const context = param.context ? Util.json2obj(param.context) : {};
     log.info('[info] request push to channel: ' + JSON.stringify(param));
-    const pushMessage = Message.create(param.type, param.data, param.context);
+    const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     Pusher.pushMessage2Channel(param.channelName, pushMessage);
 
     res.send('success');

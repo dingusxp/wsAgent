@@ -1,6 +1,6 @@
 
 const Client = require("./client.js");
-const wsServer = 'ws://127.0.0.1:8888';
+const wsServer = 'ws://129.204.30.59:80';
 
 const newClient = function(i) {
     const start = (+ new Date);
@@ -22,7 +22,7 @@ const newClient = function(i) {
     agent.setMessageHandler("login", function() {
         agent.auth(user, function() {
             agent.subscribeChannel(room, function() {
-                console.log(user.name + " is ready, again");
+                // console.log(user.name + " is ready, again");
             });
         });
     });
@@ -50,7 +50,7 @@ const newClient = function(i) {
 };
 
 let idx = 0;
-for (let i = 1; i <= 2000; i++) {
+for (let i = 1; i <= 1000; i++) {
     setTimeout(function() {
         idx++;
         newClient(idx);
