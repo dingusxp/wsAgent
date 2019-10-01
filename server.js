@@ -77,11 +77,17 @@ io.on('connection', function(socket) {
 
         log.info(clientId + ": send query, param=" + JSON.stringify(query));
         
+		// 限流
+		if (serverContext.pushQPS > maxPushQPS) {
+			socket.emit("_ack", {queryId: query.id, status: 403});
+		    return;
+		}
+		
         serverContext.queryCount++;
         serverContext.lastActiveAt = (+new Date);
         
         // _ack
-        socket.emit("_ack", {queryId: query.id});
+        socket.emit("_ack", {queryId: query.id, status: 200});
 
         const actionName = query.action;
         if (!actionName || !actions[actionName]) {
@@ -133,7 +139,7 @@ app.get('/status', function(req, res) {
     res.send(JSON.stringify(statusInfo));
 });
 
-let maxPushQPS = Config.getConfig("maxPushQPS") || 1000;
+let maxPushQPS = Config.getConfig("maxPushQPS") || 10000;
 app.post('/message2user', function(req, res) {
     
     const param = req.body || {};
