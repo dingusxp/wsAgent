@@ -13,23 +13,29 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const fs = require('fs');
 
+// protocol
 const Protocol = require("./lib/protocol.js");
 const Message = require("./lib/message.js");
-const Action = require("./lib/action.js");
+
+// config
 const Config = require("./lib/config.js");
-const Logger = require("./lib/logger.js");
-const Context = require("./lib/context.js");
-const Pusher = require("./lib/pusher.js");
+Config.mergeCommandArgs(process.argv.splice(2));
 
 // server context
+const Context = require("./lib/context.js");
 const serverContext = Context.getServerContext();
 serverContext.socketIo = io;
 
 // logger
+const Logger = require("./lib/logger.js");
 const log = Logger.getDefaultLogHandler();
 
 // actions for handling client query
+const Action = require("./lib/action.js");
 const actions = Action.actions;
+
+// puser
+const Pusher = require("./lib/pusher.js");
 
 // ws service
 // const maxConnectionCount = Config.getConfig("maxConnectionCount") || 1000;
