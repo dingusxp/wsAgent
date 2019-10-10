@@ -14,7 +14,7 @@ if (typeof io === "undefined") {
  */
 const QUERY_PRIORITIES = {
     LEVEL_IMMIDIATE: 1,
-    // LEVEL_QUEUE: 2,
+    LEVEL_QUEUE: 2
     // LEVEL_UNNESSARY: 9
 };
 
@@ -123,7 +123,7 @@ let Agent = function(agentServer) {
             context: context
         };
         socket.emit("query", queryInfo);
-        
+
         querySet[queryId] = {
             query: queryInfo,
             status: "sent",
@@ -209,7 +209,7 @@ let Agent = function(agentServer) {
     };
     socket.on("message", function(message) {
         
-        // console.log("[info] receive messge: " + JSON.stringify(message));
+        console.log("[info] receive messge: " + JSON.stringify(message));
 
         if (typeof message !== "object") {
             console.log("bad message: " + message);

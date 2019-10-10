@@ -8,7 +8,7 @@ module.exports = {
     serverPort: 8888,
     
     // redis conf
-    redisConfig: {
+    redis: {
         ip: "127.0.0.1",
         port: 6379
     },
@@ -16,7 +16,25 @@ module.exports = {
     // logger
     logger: {},
     
+    // query queue
+    queryQueue: {
+        // 自定义队列1
+        queueName1: {
+            actions: ["actionName1", "actionName2"],
+            workerOption: {
+                isSequential: true
+            }
+        },
+        // 默认队列 必须！
+        default: {
+            workerOption: {
+                isSequential: false
+            }
+        }
+    },
+    
     // server context refresh time interval
-    serverContextRefreshInterval: 5
+    serverContextRefreshInterval: 5,
+    serverDumpUserInterval: 120
     
 };

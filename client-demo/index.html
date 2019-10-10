@@ -67,7 +67,7 @@
                     words: words
                 };
                 document.getElementById("content").value = "";
-                agent.query("speak", param);
+                agent.query("speak", param, null, null, {priority: QUERY_PRIORITIES.LEVEL_QUEUE});
             };
                 
             // start chat 

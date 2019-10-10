@@ -6,6 +6,7 @@
  * 增加 priority 为 队列级别 的 message；
  * 增加 datastore 机制，落地 连接信息，消息/请求 到存储，异步消费 （half done）
  * fork 子进程分担cpu耗时操作？
+ * 消息超时检查 统一使用一个定时器，避免创建N多定时器损耗性能
  */
 
 const app = require('express')();
@@ -20,6 +21,7 @@ const Config = require("./lib/config.js");
 const Logger = require("./lib/logger.js");
 const Context = require("./lib/context.js");
 const Pusher = require("./lib/pusher.js");
+const QueryQueue = require("./lib/queryQueue.js");
 
 // server context
 const serverContext = Context.getServerContext();
@@ -32,8 +34,16 @@ const log = Logger.getDefaultLogHandler();
 const actions = Action.actions;
 
 // ws service
-// const maxConnectionCount = Config.getConfig("maxConnectionCount") || 1000;
+const maxConnectionCount = Config.getConfig("maxConnectionCount") || 10000;
 io.on('connection', function(socket) {
+    
+    // 超过限额，拒绝连接
+    if (serverContext.clientCount >= maxConnectionCount) {
+        log.warning("new connection refused - max connection reached!");
+        socket.emit("busy", "max connection");
+        setTimeout(() => socket.disconnect(true), 200);
+        return;
+    }
 
     // clientId
     const clientId = socket.id + '@' + serverContext.serverId;
@@ -73,10 +83,23 @@ io.on('connection', function(socket) {
         
         serverContext.queryCount++;
         serverContext.lastActiveAt = (+new Date);
-        
+
         // _ack
         socket.emit("_ack", {queryId: query.id});
-
+        
+        // priority level queue: add to queue
+        if (query.priority === Protocol.QUERY_PRIORITIES.LEVEL_QUEUE) {
+            query.context.serverId = serverContext.serverId;
+            query.context.serverHost = serverContext.serverHost;
+            query.context.clientId = clientId;
+            query.context.userId = clientContext.userId;
+            query.context.queryAt = (+new Date);
+            
+            QueryQueue.addQueryToQueue(query);
+            return;
+        }
+        
+        // default: priority immidiate
         const actionName = query.action;
         if (!actionName || !actions[actionName]) {
             return false;
@@ -128,6 +151,29 @@ app.get('/status', function(req, res) {
 });
 
 let maxPushQPS = Config.getConfig("maxPushQPS") || 1000;
+app.post('/message2client', function(req, res) {
+    
+    const param = req.body || {};
+    if (typeof param.clientIds === 'undefined') {
+        log.info('[warning] bad push request, no clientIds given. param: ' + JSON.stringify(param));
+        res.send('fail');
+        return;
+    }
+
+    // 限流
+    if (serverContext.pushQPS > maxPushQPS) {
+        res.send('max push reached');
+        return;
+    }
+    
+    log.info('[info] request push to client: ' + JSON.stringify(param));
+    const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
+    param.clientIds.split(',').forEach(function(clientId) {
+        Pusher.pushMessage2Client(clientId, pushMessage);
+    });
+
+    res.send('success');
+});
 app.post('/message2user', function(req, res) {
     
     const param = req.body || {};

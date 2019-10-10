@@ -1,6 +1,7 @@
 
 const Message = require("../lib/message.js");
 const Pusher = require("../lib/pusher.js");
+const Sender = require("../lib/sender.js");
 const Context = require("../lib/context.js");
 const Datastore = require("../lib/datastore.js");
 
@@ -32,7 +33,7 @@ actions.speak = function(param) {
                 Pusher.pushMessage2Channel(channelName, Message.create('show', data));
                 return;
             }
-            Pusher.sendChannelMessage2Server(serverId, channelName, "show", data);
+            Sender.sendChannelMessage2Server(serverId, channelName, "show", data);
         });
     });
     
