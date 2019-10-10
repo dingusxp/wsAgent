@@ -17,7 +17,7 @@
             <div style="text-align: left;">
                 <div id="users">
                 </div>
-                <div id="message" style="height: 600px; overflow-y: auto; background-color: aliceblue;">
+                <div id="message" style="height: 520px; overflow-y: auto; background-color: aliceblue;">
                 </div>
                 <div style="padding: 8px 0;">
                     <input type="text" maxlength="255" placeholder="请输入聊天内容，按Enter提交" id="content" style="width: 320px;">
@@ -28,13 +28,17 @@
         <script src="https://cdn.bootcss.com/socket.io/2.0.4/socket.io.js"></script>
         <script src="./client.js"></script>
         <script type="text/javascript">
-            const agent = new Agent('ws://127.0.0.1:8888');
             const room = "null98";
             const randId = (10000 + parseInt(Math.random() * 1000000000) % 90000);
             const user = {
                 userId: randId,
                 name: "random #" + randId
             };
+            let port = 8888;
+			if (randId % 2 === 0) {
+				port = 8889;
+			}
+            const agent = new Agent('ws://127.0.0.1:' + port);
             agent.setMessageHandler("show", function(data) {
                 console.log(data);
                 const content = "<p style=\"padding: 5px 10px; border-bottom: #ccc 1px dashed;\">" +

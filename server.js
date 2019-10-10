@@ -14,24 +14,32 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const fs = require('fs');
 
+// protocol
 const Protocol = require("./lib/protocol.js");
 const Message = require("./lib/message.js");
-const Action = require("./lib/action.js");
+
+// config
 const Config = require("./lib/config.js");
-const Logger = require("./lib/logger.js");
-const Context = require("./lib/context.js");
-const Pusher = require("./lib/pusher.js");
-const QueryQueue = require("./lib/queryQueue.js");
+Config.mergeCommandArgs(process.argv.splice(2));
 
 // server context
+const Context = require("./lib/context.js");
 const serverContext = Context.getServerContext();
 serverContext.socketIo = io;
 
 // logger
+const Logger = require("./lib/logger.js");
 const log = Logger.getDefaultLogHandler();
 
 // actions for handling client query
+const Action = require("./lib/action.js");
 const actions = Action.actions;
+
+// puser
+const Pusher = require("./lib/pusher.js");
+
+// query queue
+const QueryQueue = require("./lib/queryQueue.js");
 
 // ws service
 const maxConnectionCount = Config.getConfig("maxConnectionCount") || 10000;
@@ -81,11 +89,17 @@ io.on('connection', function(socket) {
 
         log.info(clientId + ": send query, param=" + JSON.stringify(query));
         
+		// 限流
+		if (serverContext.pushQPS > maxPushQPS) {
+			socket.emit("_ack", {queryId: query.id, status: 503});
+		    return;
+		}
+		
         serverContext.queryCount++;
         serverContext.lastActiveAt = (+new Date);
-
+        
         // _ack
-        socket.emit("_ack", {queryId: query.id});
+        socket.emit("_ack", {queryId: query.id, status: 200});
         
         // priority level queue: add to queue
         if (query.priority === Protocol.QUERY_PRIORITIES.LEVEL_QUEUE) {
@@ -150,7 +164,7 @@ app.get('/status', function(req, res) {
     res.send(JSON.stringify(statusInfo));
 });
 
-let maxPushQPS = Config.getConfig("maxPushQPS") || 1000;
+let maxPushQPS = Config.getConfig("maxPushQPS") || 10000;
 app.post('/message2client', function(req, res) {
     
     const param = req.body || {};

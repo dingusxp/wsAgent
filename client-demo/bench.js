@@ -1,11 +1,17 @@
-
 const Client = require("./client.js");
-const wsServer = 'ws://129.204.30.59:80';
+const wsServer = 'ws://129.204.30.59:';
+const wsPortBase = 8888;
+const serverCount = 2;
+
+const args = process.argv.splice(2);
+let id = parseInt(args[0] || 0);
+const batch = parseInt(args[1] || 200);
 
 const newClient = function(i) {
     const start = (+ new Date);
-    const id = i + 10000;
-    const agent = new Client.Agent(wsServer);
+    const id = i + 1000000;
+	const port = wsPortBase + (id % serverCount);
+    const agent = new Client.Agent(wsServer + port);
     let room = "null98";
     const flag =  id % 10;
     if (flag) {
@@ -49,10 +55,9 @@ const newClient = function(i) {
     });
 };
 
-let idx = 0;
-for (let i = 1; i <= 1000; i++) {
+for (let i = 1; i <= batch; i++) {
     setTimeout(function() {
-        idx++;
-        newClient(idx);
+        id++;
+        newClient(id);
     }, i * 100);
 }
