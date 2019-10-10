@@ -43,13 +43,14 @@ const QueryQueue = require("./lib/queryQueue.js");
 
 // ws service
 const maxConnectionCount = Config.getConfig("maxConnectionCount") || 10000;
+const maxQueryQPS = Config.getConfig("maxQueryQPS") || 1000;
 io.on('connection', function(socket) {
     
     // 超过限额，拒绝连接
     if (serverContext.clientCount >= maxConnectionCount) {
         log.warning("new connection refused - max connection reached!");
-        socket.emit("busy", "max connection");
-        setTimeout(() => socket.disconnect(true), 200);
+        // socket.emit("_busy", "max connection reached");
+        // setTimeout(() => socket.disconnect(true), 200);
         return;
     }
 
@@ -64,7 +65,7 @@ io.on('connection', function(socket) {
     socket.on("_time", function(data) {
 
         clientContext.lastActiveAt = (+new Date);
-        socket.emit("_ack", {
+        socket.emit("_time", {
             time: (+new Date)
         });
     });
@@ -90,14 +91,14 @@ io.on('connection', function(socket) {
         log.info(clientId + ": send query, param=" + JSON.stringify(query));
         
 		// 限流
-		if (serverContext.pushQPS > maxPushQPS) {
+		if (serverContext.queryQPS > maxQueryQPS) {
 			socket.emit("_ack", {queryId: query.id, status: 503});
 		    return;
 		}
-		
+
         serverContext.queryCount++;
         serverContext.lastActiveAt = (+new Date);
-        
+
         // _ack
         socket.emit("_ack", {queryId: query.id, status: 200});
         
@@ -164,7 +165,7 @@ app.get('/status', function(req, res) {
     res.send(JSON.stringify(statusInfo));
 });
 
-let maxPushQPS = Config.getConfig("maxPushQPS") || 10000;
+const maxPushQPS = Config.getConfig("maxPushQPS") || 10000;
 app.post('/message2client', function(req, res) {
     
     const param = req.body || {};

@@ -101,7 +101,7 @@ let Agent = function(agentServer) {
     socket.on("_time", function(data) {
         const now = (+new Date);
         clock.diffTime = data.time - now;
-        latency = (now - syncTime) / 2;
+        latency = (now - clock.syncTime) / 2;
         setTimeout(sendTimeCalibration, agent.timeCalibrationInterval * 1000);
     });
     // 连接后 立即做一次对时
@@ -143,6 +143,9 @@ let Agent = function(agentServer) {
         if (!querySet[queryId]) {
             return;
         }
+        
+        // [TODO] check data.status: 200 OK, 503: system busy
+        
         querySet[queryId].status = "acked";
         querySet[queryId].ackAt = (+ new Date);
 
@@ -246,6 +249,36 @@ let Agent = function(agentServer) {
         }
         
         console.log("[warning] message type handler is not defined: " + message.type);
+    });
+    
+    // callback
+    const connectedCallback = null;
+    agent.onConnected = function(onConnectedCallback) {
+        connectedCallback = onConnectedCallback;
+    };
+    const reconnectedCallback = null;
+    agent.onReconnected = function(onReconnectedCallback) {
+        reconnectedCallback = onReconnectedCallback;
+    };
+    const disconnectCallback = null;
+    agent.onDisconnect = function(onDisconnectCallback) {
+        disconnectCallback =  onDisconnectCallback;
+    };
+    
+    socket.on("connect", function() {
+        if (connectedCallback) {
+            connectedCallback.call(agent, null);
+        }
+    });
+    socket.on("reconnect", function(attemptNumber) {
+        if (reconnectedCallback) {
+            reconnectedCallback.call(agent, attemptNumber);
+        }
+    });
+    socket.on("disconnect", function(reason) {
+        if (connectedCallback) {
+            connectedCallback.call(agent, reason);
+        }
     });
 
     return agent;
