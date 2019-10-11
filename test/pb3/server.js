@@ -29,7 +29,7 @@ let messageId = 0;
 const broadcastMessage = function(data) {
     const message = {
         id: messageId++,
-        type: "time",
+        type: "show",
         data: JSON.stringify(data),
         time: (+new Date),
         context: ""

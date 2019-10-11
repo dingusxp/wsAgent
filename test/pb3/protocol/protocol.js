@@ -2,32 +2,6 @@
   "nested": {
     "protocol": {
       "nested": {
-        "Message": {
-          "fields": {
-            "id": {
-              "rule": "required",
-              "type": "int64",
-              "id": 1
-            },
-            "type": {
-              "rule": "required",
-              "type": "string",
-              "id": 2
-            },
-            "data": {
-              "type": "string",
-              "id": 3
-            },
-            "time": {
-              "type": "int64",
-              "id": 4
-            },
-            "context": {
-              "type": "string",
-              "id": 5
-            }
-          }
-        },
         "Query": {
           "fields": {
             "id": {
@@ -55,6 +29,164 @@
             "context": {
               "type": "string",
               "id": 6
+            }
+          }
+        },
+        "Message": {
+          "fields": {
+            "id": {
+              "rule": "required",
+              "type": "int64",
+              "id": 1
+            },
+            "type": {
+              "rule": "required",
+              "type": "string",
+              "id": 2
+            },
+            "data": {
+              "type": "string",
+              "id": 3
+            },
+            "time": {
+              "type": "int64",
+              "id": 4
+            },
+            "context": {
+              "type": "string",
+              "id": 5
+            }
+          }
+        },
+        "DataType": {
+          "values": {
+            "STRING": 0,
+            "JSON": 1,
+            "PB": 2
+          }
+        },
+        "Data": {
+          "fields": {
+            "type": {
+              "rule": "required",
+              "type": "string",
+              "id": 1
+            },
+            "loader": {
+              "rule": "required",
+              "type": "string",
+              "id": 2
+            },
+            "string": {
+              "type": "string",
+              "id": 3
+            },
+            "buffer": {
+              "type": "bytes",
+              "id": 4
+            }
+          }
+        },
+        "Query2": {
+          "fields": {
+            "id": {
+              "rule": "required",
+              "type": "int64",
+              "id": 1
+            },
+            "action": {
+              "rule": "required",
+              "type": "string",
+              "id": 2
+            },
+            "param": {
+              "type": "Data",
+              "id": 3
+            },
+            "time": {
+              "type": "int64",
+              "id": 4
+            },
+            "priority": {
+              "type": "int32",
+              "id": 5
+            },
+            "context": {
+              "type": "string",
+              "id": 6
+            }
+          }
+        },
+        "Message2": {
+          "fields": {
+            "id": {
+              "rule": "required",
+              "type": "int64",
+              "id": 1
+            },
+            "type": {
+              "rule": "required",
+              "type": "string",
+              "id": 2
+            },
+            "data": {
+              "rule": "required",
+              "type": "Data",
+              "id": 3
+            },
+            "time": {
+              "type": "int64",
+              "id": 4
+            },
+            "context": {
+              "type": "string",
+              "id": 5
+            }
+          }
+        },
+        "SampleData": {
+          "fields": {
+            "id": {
+              "rule": "required",
+              "type": "int64",
+              "id": 1
+            },
+            "name": {
+              "rule": "required",
+              "type": "string",
+              "id": 2
+            },
+            "age": {
+              "type": "int32",
+              "id": 3
+            },
+            "gender": {
+              "type": "string",
+              "id": 4
+            },
+            "birthday": {
+              "type": "string",
+              "id": 5
+            },
+            "phone": {
+              "type": "string",
+              "id": 6
+            },
+            "email": {
+              "type": "string",
+              "id": 7
+            },
+            "address": {
+              "type": "string",
+              "id": 8
+            },
+            "note": {
+              "type": "string",
+              "id": 9
+            },
+            "regtime": {
+              "type": "int64",
+              "id": 10
             }
           }
         }
