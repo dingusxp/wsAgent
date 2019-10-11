@@ -2,11 +2,9 @@
  * websocket server with agent/channel service
  * 
  * [TODO]
- * 取消 ping （依赖 socket.io 默认机制）； query 和 message 均要 _ack，上报接收信息的延迟；（done）
- * 增加 priority 为 队列级别 的 message；
- * 增加 datastore 机制，落地 连接信息，消息/请求 到存储，异步消费 （half done）
  * fork 子进程分担cpu耗时操作？
  * 消息超时检查 统一使用一个定时器，避免创建N多定时器损耗性能
+ * query/message 数据传输协议使用二进制而非默认的json ？
  */
 
 const app = require('express')();

@@ -286,6 +286,7 @@ let Agent = function(agentServer) {
 
 if (runMode === "node-cli") {
     module.exports = {
+        Protocol,
         Agent
     };
 }

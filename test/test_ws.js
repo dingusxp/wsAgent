@@ -4,6 +4,7 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 
 const serverContext = {
+    serverHost: "127.0.0.1:8888",
     clientCount: 0,
 };
 io.on('connection', function(socket) {

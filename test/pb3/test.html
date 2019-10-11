@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+	<head>
+        <meta charset="utf-8">
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="format-detection" content="email=no" />
+        <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0"
+            name="viewport">
+        <title>test</title>
+        <link rel="icon" href="data:image/ico;base64,aWNv">
+	</head>
+    <body style="text-align: center;">
+        <div style="margin: 0 auto; width: 900px;">
+            <div>
+                <h1 style="font-size: 16px; line-height: 30px;">测试</h1>
+            </div>
+            <div style="text-align: left;">
+                <div id="users">
+                </div>
+                <div id="message" style="height: 480px; overflow-y: auto; background-color: aliceblue;">
+                </div>
+                <div style="padding: 8px 0;">
+                    <input type="text" maxlength="255" placeholder="请输入聊天内容，按Enter提交" id="content" style="width: 320px;">
+                    <button type="button" id="btn-submit">提交</button>
+                </div>
+            </div>
+        </div>
+        <script src="https://cdn.bootcss.com/socket.io/2.0.4/socket.io.js"></script>
+        <script src="./protobuf.min.js"></script>
+        <script type="text/javascript">
+            
+            let Query = null;
+            let Message = null;
+            protobuf.load("./protocol/protocol.js", function(err, root) {
+                if (err) {
+                    console.log("load protocol failed! " + err);
+                    return;
+                }
+                Query = root.lookupType("protocol.Query");
+                Message = root.lookupType("protocol.Message");
+                console.log("protocol loaded");
+            });
+                
+            const room = "null98";
+            const randId = (10000 + parseInt(Math.random() * 1000000000) % 90000);
+            const user = {
+                userId: randId,
+                name: "random #" + randId
+            };
+                
+            const showMessage = function(data) {
+                const content = "<p style=\"padding: 5px 10px; border-bottom: #ccc 1px dashed;\">" +
+                                "  <em>" + (data.name === user.name ? "我" : data.name) + " : </em>" +
+                                "  <span>" + data.words + "</span>" +
+                                "</p>";
+                const elem = document.createElement("div");
+                elem.innerHTML = content;
+                const $msg = document.getElementById("message");
+                $msg.appendChild(elem);
+                $msg.scrollTop = $msg.scrollHeight;
+            };
+            
+            const agentServer = "ws://127.0.0.1:8080";
+            const socket = io.connect(agentServer);
+            
+            socket.on("message", function(data) {
+                // console.log("receive data: ", data);
+                if (data.constructor !== Uint8Array) {
+                    data = new Uint8Array(data);
+                }
+                const message = Message.decode(data);
+                // console.log("decoded message", message);
+                showMessage(JSON.parse(message.data));
+            });
+
+            let queryId = 0;
+            const speak = function() {
+                const words = document.getElementById("content").value;
+                const param = {
+                    room: room,
+                    name: user.name,
+                    words: words
+                };
+                document.getElementById("content").value = "";
+                queryId++;
+                const query = {
+                    id: queryId,
+                    action: "speak",
+                    param: JSON.stringify(param),
+                    time: (+new Date),
+                    priority: 1,
+                    context: ""
+                };
+                // console.log("send query speak: " + JSON.stringify(query));
+                const uint8Array = Query.encode(Query.create(query)).finish();
+                const buffer = uint8Array.buffer.slice(uint8Array.byteOffset, uint8Array.byteOffset + uint8Array.byteLength);
+                // console.log("buffer", buffer);
+                socket.emit("query", buffer);
+            };
+
+            // start chat 
+            document.getElementById("content").onkeydown = function(e) {
+                e = e || event;
+                if (e.keyCode === 13) {
+                    speak();
+                }
+            };
+            document.getElementById('btn-submit').onclick = function() {
+                speak();
+            };
+            
+        </script>
+    </body>
+</html>
