@@ -31,6 +31,7 @@ enum DataType {
 
 message Data {
 //  required DataType type = 1;
+// STRING/JSON/PB
   required string type = 1;
   required string loader = 2;
   optional string string = 3;
@@ -52,18 +53,4 @@ message Message2 {
   required Data data = 3;
   optional int64 time = 4;
   optional string context = 5;
-}
-
-// other data
-message SampleData {
-  required int64 id = 1;
-  required string name = 2;
-  optional int32 age = 3;
-  optional string gender = 4;
-  optional string birthday = 5;
-  optional string phone = 6;
-  optional string email = 7;
-  optional string address = 8;
-  optional string note = 9;
-  optional int64 regtime = 10;
 }

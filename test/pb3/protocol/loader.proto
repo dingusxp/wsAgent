@@ -1,0 +1,18 @@
+
+// other data
+package loader;
+syntax = "proto3";
+
+message User {
+  required int64 id = 1;
+  required string name = 2;
+  optional string phone = 3;
+// 1 male; 2 female; 3 secret
+  optional int32 gender = 4;
+  optional int32 regtime = 5;
+}
+
+message UserList {
+  repeated User list = 1;
+  required int32 total = 2;
+}

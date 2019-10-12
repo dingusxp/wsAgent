@@ -1,5 +1,49 @@
 {
   "nested": {
+    "loader": {
+      "nested": {
+        "User": {
+          "fields": {
+            "id": {
+              "rule": "required",
+              "type": "int64",
+              "id": 1
+            },
+            "name": {
+              "rule": "required",
+              "type": "string",
+              "id": 2
+            },
+            "phone": {
+              "type": "string",
+              "id": 3
+            },
+            "gender": {
+              "type": "int32",
+              "id": 4
+            },
+            "regtime": {
+              "type": "int32",
+              "id": 5
+            }
+          }
+        },
+        "UserList": {
+          "fields": {
+            "list": {
+              "rule": "repeated",
+              "type": "User",
+              "id": 1
+            },
+            "total": {
+              "rule": "required",
+              "type": "int32",
+              "id": 2
+            }
+          }
+        }
+      }
+    },
     "protocol": {
       "nested": {
         "Query": {
@@ -141,52 +185,6 @@
             "context": {
               "type": "string",
               "id": 5
-            }
-          }
-        },
-        "SampleData": {
-          "fields": {
-            "id": {
-              "rule": "required",
-              "type": "int64",
-              "id": 1
-            },
-            "name": {
-              "rule": "required",
-              "type": "string",
-              "id": 2
-            },
-            "age": {
-              "type": "int32",
-              "id": 3
-            },
-            "gender": {
-              "type": "string",
-              "id": 4
-            },
-            "birthday": {
-              "type": "string",
-              "id": 5
-            },
-            "phone": {
-              "type": "string",
-              "id": 6
-            },
-            "email": {
-              "type": "string",
-              "id": 7
-            },
-            "address": {
-              "type": "string",
-              "id": 8
-            },
-            "note": {
-              "type": "string",
-              "id": 9
-            },
-            "regtime": {
-              "type": "int64",
-              "id": 10
             }
           }
         }
