@@ -44,21 +44,15 @@ const newClient = function(i) {
             words: "hello " + now
         };
         agent.query("speak", param);
-        const timeout = (2000 + parseInt(Math.random() * 1000000000) % 8000);
+        const timeout = (10000 + parseInt(Math.random() * 1000000000) % 10000);
         setTimeout(autoSend, timeout);
     };
-    // register && subscribe
-    agent.auth(user, function() {
-        agent.subscribeChannel(room, function() {
-            // console.log(user.name + " is ready");
-            autoSend();
-        });
-    });
+    autoSend();
 };
 
 for (let i = 1; i <= batch; i++) {
     setTimeout(function() {
         id++;
         newClient(id);
-    }, i * 10);
+    }, i * 100);
 }
