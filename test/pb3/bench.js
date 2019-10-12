@@ -47,8 +47,8 @@ protobuf.load("./protocol/protocol.js", function(err, root) {
             pb3[ns][name] = root.lookupType(`${ns}.${name}`);
         }
     }
-    console.log("protocol loaded");
-    
+    // console.log("pb3 loaded");
+
     // test
     console.log("====== test big content ========");
     let message = {
@@ -87,7 +87,6 @@ protobuf.load("./protocol/protocol.js", function(err, root) {
             + `  total size: ${formatNumber(totalSize, NUMBER_FORMATS.STORAGE)}\n`
             + `  cost: ${formatNumber(diffTime, NUMBER_FORMATS.TIMECOST)}\n`);
             
-    
     
     console.log("====== test complex content ========");
     const user = {

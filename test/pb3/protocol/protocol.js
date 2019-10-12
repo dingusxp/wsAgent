@@ -41,6 +41,22 @@
               "id": 2
             }
           }
+        },
+        "ChatWords": {
+          "fields": {
+            "room": {
+              "type": "string",
+              "id": 1
+            },
+            "name": {
+              "type": "string",
+              "id": 2
+            },
+            "words": {
+              "type": "string",
+              "id": 3
+            }
+          }
         }
       }
     },

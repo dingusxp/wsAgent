@@ -29,16 +29,27 @@
         <script src="./protobuf.min.js"></script>
         <script type="text/javascript">
             
-            let Query = null;
-            let Message = null;
+            // load pb3
+            const pb3 = {
+                protocol: {
+                    Query2: null,
+                    Message2: null
+                },
+                loader: {
+                    ChatWords: null
+                }
+            };
             protobuf.load("./protocol/protocol.js", function(err, root) {
                 if (err) {
                     console.log("load protocol failed! " + err);
                     return;
                 }
-                Query = root.lookupType("protocol.Query");
-                Message = root.lookupType("protocol.Message");
-                console.log("protocol loaded");
+                for (let ns in pb3) {
+                    for (let name in pb3[ns]) {
+                        pb3[ns][name] = root.lookupType(`${ns}.${name}`);
+                    }
+                }
+                // console.log("pb3 loaded");
             });
                 
             const room = "null98";
@@ -68,9 +79,23 @@
                 if (data.constructor !== Uint8Array) {
                     data = new Uint8Array(data);
                 }
-                const message = Message.decode(data);
+                const message = pb3.protocol.Message2.decode(data);
                 // console.log("decoded message", message);
-                showMessage(JSON.parse(message.data));
+                // decode data
+                let messageData = null;
+                if (message.data.type === "PB") {
+                    messageData = pb3.loader[message.data.loader].decode(message.data.buffer);
+                } else if (message.data.type === "JSON") {
+                    messageData = JSON.parse(message.data.string);
+                } else {
+                    messageData = query.param.string;
+                }
+                // console.log("message data", messageData);
+                
+                // 分发
+                if (message.type === "show") {
+                    showMessage(messageData);
+                }
             });
 
             let queryId = 0;
@@ -82,20 +107,38 @@
                     words: words
                 };
                 document.getElementById("content").value = "";
+                
                 queryId++;
                 const query = {
                     id: queryId,
                     action: "speak",
-                    param: JSON.stringify(param),
+                    param: {
+                        type: "PB",
+                        loader: "ChatWords",
+                        string: "",
+                        buffer: pb3.loader.ChatWords.encode(pb3.loader.ChatWords.create(param)).finish()
+                    },
+                    // param: {
+                    //     type: "JSON",
+                    //     loader: "",
+                    //     string: JSON.stringify(param),
+                    //     buffer: null
+                    // },
                     time: (+new Date),
                     priority: 1,
                     context: ""
                 };
-                // console.log("send query speak: " + JSON.stringify(query));
-                const uint8Array = Query.encode(Query.create(query)).finish();
-                const buffer = uint8Array.buffer.slice(uint8Array.byteOffset, uint8Array.byteOffset + uint8Array.byteLength);
-                // console.log("buffer", buffer);
-                socket.emit("query", buffer);
+                // console.log("send query", query);
+                const queryObj = pb3.protocol.Query2.encode(pb3.protocol.Query2.create(query)).finish();
+                const queryBuffer = queryObj.buffer.slice(queryObj.byteOffset, queryObj.byteOffset + queryObj.byteLength);
+                // console.log("query buffer", queryBuffer);
+                /*
+                // test decode
+                const decodedQuery = pb3.protocol.Query2.decode(new Uint8Array(queryBuffer));
+                console.log("test decode buffer", decodedQuery);
+                console.log("test decode chatwords", pb3.loader.ChatWords.decode(decodedQuery.param.buffer));
+                */
+                socket.emit("query", queryBuffer);
             };
 
             // start chat 
@@ -108,7 +151,6 @@
             document.getElementById('btn-submit').onclick = function() {
                 speak();
             };
-            
         </script>
     </body>
 </html>

@@ -1,8 +1,9 @@
-package protocol;
 syntax = "proto3";
 
 // build command:
 // ./node_modules/protobufjs/bin/pbjs -t json -o test/pb3/protocol/protocol.js test/pb3/protocol/*.proto
+
+package protocol;
 
 // v1
 message Query {
