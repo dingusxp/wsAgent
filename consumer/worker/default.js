@@ -1,18 +1,16 @@
-
 const QueryQueue = require("../../lib/queryQueue.js");
 const Datastore = require("../../lib/datastore.js");
 const Sender = require("../../lib/sender.js");
 
 const actions = {};
 actions.speak = function(query) {
-    
+
     return new Promise(function(resolve, fail) {
-        
-        // 未登录，通知用户重新登录
+
+        // 未登录，不允许发言
         if (!query.context.userId) {
-            Sender.sendClientMessage2Server(query.context.serverHost, query.context.clientId, "login");
-            fail("bad message. user not login!");
-            return false;
+            fail("user not login");
+            return;
         }
 
         const param = query.param;
@@ -21,7 +19,7 @@ actions.speak = function(query) {
             name: (param.name || "noname"),
             words: param.words
         };
-        
+
         // 发送给频道对应的所有实例
         Datastore.getServerIdsByChannel(channelName).then(function(serverIds) {
             if (!serverIds) {
@@ -39,7 +37,7 @@ actions.speak = function(query) {
 };
 
 const consume = function() {
-    
+
     QueryQueue.popQueryFromQueue("default").then(function(data) {
         if (!data) {
             // console.log("[info] empty list. have a rest");

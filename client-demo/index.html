@@ -39,6 +39,24 @@
 				// port = 8889;
 			}
             const agent = new Agent('ws://127.0.0.1:' + port);
+            const doLogin = function() {
+                agent.auth(user, function() {
+                    agent.subscribeChannel(room, function() {
+                        console.log(user.name + " has logined");
+                    });
+                });
+            };
+            agent.onConnected(function() {
+                console.log("connect callback...");
+                doLogin();
+            });
+            agent.onReconnect(function(attemptNumber) {
+                console.log("reconnect callback... attempt #" + attemptNumber);
+            });
+            agent.onDisconnect(function(reason) {
+                console.log("disconnect callback... reason: " + reason);
+            });
+            
             agent.setMessageHandler("show", function(data) {
                 console.log(data);
                 const content = "<p style=\"padding: 5px 10px; border-bottom: #ccc 1px dashed;\">" +
@@ -51,17 +69,6 @@
                 $msg.appendChild(elem);
                 $msg.scrollTop = $msg.scrollHeight;
             });
-            const doLogin = function() {
-                agent.auth(user, function() {
-                    agent.subscribeChannel(room, function() {
-                        console.log(user.name + " has logined");
-                    });
-                });
-            };
-            agent.setMessageHandler("login", function() {
-                doLogin();
-            });
-            doLogin();
 
             const speak = function() {
                 const words = document.getElementById("content").value;
@@ -71,7 +78,8 @@
                     words: words
                 };
                 document.getElementById("content").value = "";
-                agent.query("speak", param, null, null, {priority: QUERY_PRIORITIES.LEVEL_QUEUE});
+                agent.query("speak", param);
+                // agent.query("speak", param, null, null, {priority: QUERY_PRIORITIES.LEVEL_QUEUE});
             };
                 
             // start chat 

@@ -1,4 +1,3 @@
-
 const Message = require("../lib/message.js");
 const Pusher = require("../lib/pusher.js");
 const Sender = require("../lib/sender.js");
@@ -10,19 +9,18 @@ const serverContext = Context.getServerContext();
 const actions = {};
 
 actions.speak = function(param) {
-    
-    // 未登录
+
+    // 未登录，不允许发言
     if (!this.userId) {
-        this.socket.emit("message", Message.create('login', {}));
         return false;
     }
-    
+
     const channelName = (param.channelName || "default");
     const data = {
         name: (param.name || "noname"),
         words: param.words
     };
-    
+
     // 发送给频道对应的所有实例
     Datastore.getServerIdsByChannel(channelName).then(function(serverIds) {
         if (!serverIds) {
@@ -36,7 +34,7 @@ actions.speak = function(param) {
             Sender.sendChannelMessage2Server(serverId, channelName, "show", data);
         });
     });
-    
+
     return false;
 };
 

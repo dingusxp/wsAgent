@@ -1,4 +1,3 @@
-
 let runMode = "browser";
 let socketIo = null;
 if (typeof io === "undefined") {
@@ -83,7 +82,7 @@ let Agent = function(agentServer) {
     agent.getLatency = function() {
         return latency;
     };
-    
+
     // time calibration
     const clock = {
         syncTime: 0,
@@ -91,7 +90,7 @@ let Agent = function(agentServer) {
         diffTime: 0
     };
     agent.getServerTime = function() {
-        return (+new Date) + clock.diffTime/* + latency*/;
+        return (+new Date) + clock.diffTime /* + latency*/ ;
     };
     agent.timeCalibrationInterval = DEFAULT_TIME_CALIBRATION_INTERVAL;
     const sendTimeCalibration = function() {
@@ -127,7 +126,7 @@ let Agent = function(agentServer) {
         querySet[queryId] = {
             query: queryInfo,
             status: "sent",
-            queryTime: (+ new Date),
+            queryTime: (+new Date),
             queryAt: queryInfo.time,
             ackAt: 0,
             responseAt: 0,
@@ -143,14 +142,14 @@ let Agent = function(agentServer) {
         if (!querySet[queryId]) {
             return;
         }
-        
+
         // [TODO] check data.status: 200 OK, 503: system busy
-        
+
         querySet[queryId].status = "acked";
-        querySet[queryId].ackAt = (+ new Date);
+        querySet[queryId].ackAt = (+new Date);
 
         // update latency
-        latency = (+ new Date) - querySet[queryId].queryTime;
+        latency = (+new Date) - querySet[queryId].queryTime;
     });
     // 请求超时处理
     const queryTimeoutCallback = function(queryId) {
@@ -161,7 +160,7 @@ let Agent = function(agentServer) {
         return timeoutCallback.call(querySet[queryId], {});
     };
     const checkQueryTimeout = function(queryId, ackTimeout, responseTimeout) {
-        
+
         // ack timeout
         setTimeout(function() {
             if (!querySet[queryId] || querySet[queryId].ackAt > 0) {
@@ -169,7 +168,7 @@ let Agent = function(agentServer) {
             }
             return queryTimeoutCallback(queryId);
         }, ackTimeout * 1000);
-        
+
         // response timeout
         setTimeout(function() {
             if (querySet[queryId].responseAt > 0) {
@@ -180,19 +179,19 @@ let Agent = function(agentServer) {
             delete querySet[queryId];
         }, responseTimeout * 1000);
     };
-    
+
     // auth: check login && bind user on server
     agent.auth = function(userAuth, callback, onFailed) {
-        
+
         return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.AUTH, userAuth, callback, onFailed);
     };
-    
+
     // subscribe channel
     agent.subscribeChannel = function(channelName, callback, onFailed) {
-        
+
         return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.SUBSCRIBE, channelName, callback, onFailed);
     };
-    
+
     // unsubscribe channel
     agent.unsubscribeChannel = function(channelName, callback, onFailed) {
 
@@ -211,8 +210,8 @@ let Agent = function(agentServer) {
         // console.log("[info] registerred message type handler: " + type);
     };
     socket.on("message", function(message) {
-        
-        console.log("[info] receive messge: " + JSON.stringify(message));
+
+        // console.log("[info] receive messge: " + JSON.stringify(message));
 
         if (typeof message !== "object") {
             console.log("bad message: " + message);
@@ -220,7 +219,10 @@ let Agent = function(agentServer) {
         }
 
         // _ack
-        socket.emit("_ack", {messageId: message.id, channelName: message.context.channelName || ""});
+        socket.emit("_ack", {
+            messageId: message.id,
+            channelName: message.context.channelName || ""
+        });
 
         const context = {};
         context.agent = agent;
@@ -231,7 +233,7 @@ let Agent = function(agentServer) {
             context.query = querySet[queryId].query;
             queryCallback = querySet[queryId].responseCallback;
             querySet[queryId].status = "responsed";
-            querySet[queryId].responseAt = (+ new Date);
+            querySet[queryId].responseAt = (+new Date);
         }
 
         // internal message type: _callback
@@ -247,37 +249,37 @@ let Agent = function(agentServer) {
             messageHandlers[message.type].call(context, message.data);
             return;
         }
-        
+
         console.log("[warning] message type handler is not defined: " + message.type);
     });
-    
+
     // callback
-    const connectedCallback = null;
+    let connectedCallback = null;
     agent.onConnected = function(onConnectedCallback) {
         connectedCallback = onConnectedCallback;
     };
-    const reconnectedCallback = null;
-    agent.onReconnected = function(onReconnectedCallback) {
-        reconnectedCallback = onReconnectedCallback;
+    let reconnectCallback = null;
+    agent.onReconnect = function(onReconnectCallback) {
+        reconnectCallback = onReconnectCallback;
     };
-    const disconnectCallback = null;
+    let disconnectCallback = null;
     agent.onDisconnect = function(onDisconnectCallback) {
-        disconnectCallback =  onDisconnectCallback;
+        disconnectCallback = onDisconnectCallback;
     };
-    
+
     socket.on("connect", function() {
         if (connectedCallback) {
             connectedCallback.call(agent, null);
         }
     });
     socket.on("reconnect", function(attemptNumber) {
-        if (reconnectedCallback) {
-            reconnectedCallback.call(agent, attemptNumber);
+        if (reconnectCallback) {
+            reconnectCallback.call(agent, attemptNumber);
         }
     });
     socket.on("disconnect", function(reason) {
-        if (connectedCallback) {
-            connectedCallback.call(agent, reason);
+        if (disconnectCallback) {
+            disconnectCallback.call(agent, reason);
         }
     });
 

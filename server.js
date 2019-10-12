@@ -43,12 +43,11 @@ const QueryQueue = require("./lib/queryQueue.js");
 const maxConnectionCount = Config.getConfig("maxConnectionCount") || 10000;
 const maxQueryQPS = Config.getConfig("maxQueryQPS") || 1000;
 io.on('connection', function(socket) {
-    
+
     // 超过限额，拒绝连接
     if (serverContext.clientCount >= maxConnectionCount) {
         log.warning("new connection refused - max connection reached!");
-        // socket.emit("_busy", "max connection reached");
-        // setTimeout(() => socket.disconnect(true), 200);
+        socket.disconnect(true);
         return;
     }
 
@@ -56,7 +55,7 @@ io.on('connection', function(socket) {
     const clientId = socket.id + '@' + serverContext.serverId;
     const clientContext = Context.addClientContext(clientId, socket);
     serverContext.clientCount++;
-    log.info(clientId + ": new connect");
+    // log.info(clientId + ": new connect");
 
     // methods listen
     // _time
@@ -71,35 +70,41 @@ io.on('connection', function(socket) {
     // ack
     const messageSet = [];
     socket.on("_ack", function(data) {
-        
+
         clientContext.lastActiveAt = (+new Date);
         Pusher.markMessageAcked(clientId, data);
     });
 
     // 断开连接
     socket.on('disconnect', function() {
-        
+
         Context.dropClientContext(clientId);
-        log.info("disconnected #" + clientId);
+        // log.info("disconnected #" + clientId);
     });
 
     // query
     socket.on('query', function(query) {
 
-        log.info(clientId + ": send query, param=" + JSON.stringify(query));
-        
-		// 限流
-		if (serverContext.queryQPS > maxQueryQPS) {
-			socket.emit("_ack", {queryId: query.id, status: 503});
-		    return;
-		}
+        // log.info(clientId + ": send query, param=" + JSON.stringify(query));
+
+        // 限流
+        if (serverContext.queryQPS > maxQueryQPS) {
+            socket.emit("_ack", {
+                queryId: query.id,
+                status: 503
+            });
+            return;
+        }
 
         serverContext.queryCount++;
         serverContext.lastActiveAt = (+new Date);
 
         // _ack
-        socket.emit("_ack", {queryId: query.id, status: 200});
-        
+        socket.emit("_ack", {
+            queryId: query.id,
+            status: 200
+        });
+
         // priority level queue: add to queue
         if (query.priority === Protocol.QUERY_PRIORITIES.LEVEL_QUEUE) {
             query.context.serverId = serverContext.serverId;
@@ -107,20 +112,20 @@ io.on('connection', function(socket) {
             query.context.clientId = clientId;
             query.context.userId = clientContext.userId;
             query.context.queryAt = (+new Date);
-            
+
             QueryQueue.addQueryToQueue(query);
             return;
         }
-        
+
         // default: priority immidiate
         const actionName = query.action;
         if (!actionName || !actions[actionName]) {
             return false;
         }
-        
+
         const resolve = function(data) {
 
-            log.info(clientId + ": query handled, return=" + JSON.stringify(data));
+            // log.info(clientId + ": query handled, return=" + JSON.stringify(data));
 
             if (false === data) {
                 return;
@@ -129,7 +134,7 @@ io.on('connection', function(socket) {
                 queryId: query.id
             };
             // push client message
-            const message = Message.create(Protocol.INTERNAL_MESSAGE_TYPIES.CALLACK, 
+            const message = Message.create(Protocol.INTERNAL_MESSAGE_TYPIES.CALLACK,
                 data,
                 messageContext);
             Pusher.pushMessage2Client(clientId, message);
@@ -147,25 +152,27 @@ io.on('connection', function(socket) {
 
 // http api
 const bodyParser = require("body-parser");
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({
+    extended: false
+}));
 app.use(bodyParser.json());
 app.get('/', function(req, res) {
-    
+
     res.send("OK");
 });
 
 app.get('/status', function(req, res) {
-    
+
     // 更新信息
     // Context.refreshServerContext();
-    
+
     const statusInfo = Context.getServerStatus();
     res.send(JSON.stringify(statusInfo));
 });
 
 const maxPushQPS = Config.getConfig("maxPushQPS") || 10000;
 app.post('/message2client', function(req, res) {
-    
+
     const param = req.body || {};
     if (typeof param.clientIds === 'undefined') {
         log.info('[warning] bad push request, no clientIds given. param: ' + JSON.stringify(param));
@@ -178,7 +185,7 @@ app.post('/message2client', function(req, res) {
         res.send('max push reached');
         return;
     }
-    
+
     log.info('[info] request push to client: ' + JSON.stringify(param));
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     param.clientIds.split(',').forEach(function(clientId) {
@@ -188,20 +195,20 @@ app.post('/message2client', function(req, res) {
     res.send('success');
 });
 app.post('/message2user', function(req, res) {
-    
+
     const param = req.body || {};
     if (typeof param.userIds === 'undefined') {
         log.info('[warning] bad push request, no userIds given. param: ' + JSON.stringify(param));
         res.send('fail');
         return;
     }
-    
+
     // 限流
     if (serverContext.pushQPS > maxPushQPS) {
         res.send('max push reached');
         return;
     }
-    
+
     log.info('[info] request push to user: ' + JSON.stringify(param));
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     param.userIds.split(',').forEach(function(userId) {
@@ -225,7 +232,7 @@ app.post('/message2channel', function(req, res) {
         res.send('max push reached');
         return;
     }
-    
+
     log.info('[info] request push to channel: ' + JSON.stringify(param));
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     Pusher.pushMessage2Channel(param.channelName, pushMessage);

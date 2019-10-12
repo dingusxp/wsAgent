@@ -5,11 +5,12 @@ let fs = require('fs');
 
 // http static server
 // simple chatroom, just for fun
-let resourceCache = {};
 const allowStaticResources = [
     '/index.html',
     '/client.js'
 ];
+/*
+let resourceCache = {};
 allowStaticResources.forEach(function(path) {
     resourceCache[path] = fs.readFileSync(__dirname + path, 'utf8').toString();
     
@@ -18,6 +19,15 @@ allowStaticResources.forEach(function(path) {
         let reqPath = path;
         app.get(reqPath, function(req, res) {
             res.send(resourceCache[reqPath]);
+        });
+    })();
+});
+*/
+allowStaticResources.forEach(function(path) {
+    (function() {
+        let reqPath = path;
+        app.get(reqPath, function(req, res) {
+            res.send(fs.readFileSync(__dirname + path, 'utf8').toString());
         });
     })();
 });
