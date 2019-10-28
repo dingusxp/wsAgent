@@ -1,25 +1,51 @@
 const Client = require("./client.js");
-const wsServer = 'ws://127.0.0.1:';
-const wsPortBase = 8888;
-const serverCount = 1;
+const Config = {
+    wsServer: '127.0.0.1',
+    wsPortBase: 8888,
+    serverCount: 1,
+    totalRoom: 10,
+    clientSpeakInterval: 10,
+    benchId: 0,
+    benchBatch: 1000
+};
 
-const args = process.argv.splice(2);
-let id = parseInt(args[0] || 0);
-const batch = parseInt(args[1] || 1000);
-
-const newClient = function(i) {
-    const start = (+new Date);
-    const id = i + 1000000;
-    const port = wsPortBase + (id % serverCount);
-    const agent = new Client.Agent(wsServer + port);
-    let room = "null98";
-    const flag = id % 10;
-    if (flag) {
-        room = room + '_' + flag;
+// merge config
+const commandLine = process.argv.splice(2);
+const re = /--(wsServer|wsPortBase|serverCount|totalRoom|clientSpeakInterval|benchId|benchBatch)=([\w\.\:\/]+)/;
+commandLine.forEach(function(arg) {
+    const check = re.exec(arg);
+    if (!check) {
+        return;
     }
+    const field = check[1];
+    const value = check[2];
+    switch (field) {
+        case "wsServer":
+          Config[field] = "" + value;
+          break;
+        case "wsPortBase":
+        case "serverCount":
+        case "totalRoom":
+        case "clientSpeakInterval":
+        case "benchId":
+        case "benchBatch":
+          Config[field] = parseInt(value);
+          break;
+    }
+});
+console.log(Config);
+
+const newClient = function(benchId) {
+    const start = (+new Date);
+    const userId = benchId + 1000000;
+    const port = Config.wsPortBase + (userId % Config.serverCount);
+    const agent = new Client.Agent(Config.wsServer + ":" + port);
+    let room = "room";
+    const flag = userId % Config.totalRoom;
+    room = room + '_' + flag;
     const user = {
-        userId: id,
-        name: "random #" + id
+        userId: userId,
+        name: "random #" + userId
     };
     const doLogin = function() {
         agent.auth(user, function() {
@@ -35,7 +61,7 @@ const newClient = function(i) {
     });
     const autoSend = function() {
         const now = (+new Date);
-        if (now - start >= 300000) {
+        if (now - start >= 600000) {
             return;
         }
         const param = {
@@ -44,15 +70,20 @@ const newClient = function(i) {
             words: "hello " + now
         };
         agent.query("speak", param);
-        const timeout = (10000 + parseInt(Math.random() * 1000000000) % 10000);
-        setTimeout(autoSend, timeout);
+        setTimeout(autoSend, Config.clientSpeakInterval*1000);
     };
-    autoSend();
+    // 稍微延迟
+    const timeout = (100 + parseInt(Math.random() * 1000000000) % 10000);
+    setTimeout(autoSend, timeout);
 };
 
-for (let i = 1; i <= batch; i++) {
-    setTimeout(function() {
-        id++;
-        newClient(id);
-    }, i * 100);
-}
+let clientIdx = 0;
+const createClient = function() {
+    const clientId = Config.benchId + clientIdx;
+    newClient(clientId);
+    clientIdx++;
+    if (clientIdx < Config.benchBatch) {
+        setTimeout(createClient, 10);
+    }
+};
+createClient();
