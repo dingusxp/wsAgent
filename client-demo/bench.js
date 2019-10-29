@@ -59,6 +59,11 @@ const newClient = function(benchId) {
     agent.setMessageHandler("show", function(data) {
         // console.log(data);
     });
+    
+    // 定时自动发消息
+    if (Config.clientSpeakInterval <= 0) {
+        return;
+    }
     const autoSend = function() {
         const now = (+new Date);
         if (now - start >= 600000) {

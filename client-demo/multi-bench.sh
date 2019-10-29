@@ -5,7 +5,7 @@ wsPortBase=8880
 serverCount=8
 
 # 10000 个连接，10个房间，每个房间1000人，每个房间每秒100条信息；理论 10w pushQPS
-totalRoom=50
+totalRoom=10
 clientSpeakInterval=10
 benchNum=20
 benchBatch=500
