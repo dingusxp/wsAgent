@@ -7,5 +7,5 @@ do
   port=$(expr $basePort + $i)
   echo "server-$port ..."
   node ./server.js --serverPort=$port > /tmp/server-$port.log & 
-  sleep 5
+  sleep 1
 done

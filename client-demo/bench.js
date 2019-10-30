@@ -88,7 +88,7 @@ const createClient = function() {
     newClient(clientId);
     clientIdx++;
     if (clientIdx < Config.benchBatch) {
-        setTimeout(createClient, 10);
+        setTimeout(createClient, 5);
     }
 };
 createClient();

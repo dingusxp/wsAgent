@@ -13,6 +13,6 @@ for ((i=0; i<benchNum; i++))
 do
   benchId=$(expr $i \* $benchBatch)
   echo "benchId #$benchId ..."
-  node ./bench.js --wsServer=$wsServer --wsPortBase=$wsPortBase --serverCount=$serverCount --totalRoom=$totalRoom --benchId=$benchId --benchBatch=$benchBatch > /tmp/bench-$benchId.log &
-  sleep 10
+  node ./bench.js --wsServer=$wsServer --wsPortBase=$wsPortBase --serverCount=$serverCount --totalRoom=$totalRoom --clientSpeakInterval=$clientSpeakInterval --benchId=$benchId --benchBatch=$benchBatch > /tmp/bench-$benchId.log &
+  sleep 3
 done

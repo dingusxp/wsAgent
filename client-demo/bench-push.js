@@ -6,7 +6,7 @@ const servers = [
     '127.0.0.1:8881'
 ];
 const rooms = [
-    'room_01'
+    'room_1'
 ];
 const roomNum = 10;
 const pushInterval = 10;
@@ -31,7 +31,7 @@ function sendOnebyOne() {
     servers.forEach((server) => {
         rooms.forEach((room) => {
             expectCnt++;
-            Sener.sendChannelMessage2Server(server, room, messageType, messageData).then(function() {
+            Sender.sendChannelMessage2Server(server, room, messageType, messageData).then(function() {
                 successCnt++;
                 completeCnt++;
             }, function() {
