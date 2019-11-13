@@ -6,7 +6,7 @@ const servers = [
     '127.0.0.1:8881'
 ];
 const rooms = [
-    'room_01'
+    'room_1'
 ];
 const roomNum = 10;
 const pushInterval = 10;
@@ -18,6 +18,7 @@ const messageData = {
     words: "this is a test"
 };
 const pushIndex = 0;
+const SEND_TIMEOUT = 5000;
 function sendOnebyOne() {
     pushIndex++;
     if (pushIndex >= maxPushCount) {
@@ -31,7 +32,7 @@ function sendOnebyOne() {
     servers.forEach((server) => {
         rooms.forEach((room) => {
             expectCnt++;
-            Sener.sendChannelMessage2Server(server, room, messageType, messageData).then(function() {
+            Sender.sendChannelMessage2Server(server, room, messageType, messageData).then(function() {
                 successCnt++;
                 completeCnt++;
             }, function() {
@@ -39,18 +40,21 @@ function sendOnebyOne() {
             });
         });
     });
-    let maxTry = 5;
+    let start = (+new Date);
     const nextSend = function() {
+        // 已经全部完成，下一组
         if (completeCnt >= expectCnt) {
             setTimeout(sendOnebyOne, pushInterval);
             return;
         }
-        maxTry--;
-        if (maxTry > 0) {
+        let now = (+new Date);
+        // 持续检查，直到 全部完成 或 超时
+        if (now - start < SEND_TIMEOUT) {
             setTimeout(nextSend, pushInterval);
             return;
         }
         console.log(`#${pushIndex} | failed: ${successCnt} : ${completeCnt} / ${expectCnt}`);
+        setTimeout(sendOnebyOne, pushInterval);
     };
     nextSend();
 }
