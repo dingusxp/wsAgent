@@ -1,16 +1,28 @@
 
 const Sender = require("../lib/sender.js");
 
-const servers = [
-    '127.0.0.1:8880',
-    '127.0.0.1:8881'
-];
-const rooms = [
-    'room_1'
-];
+const serverNum = 1;
+const host = '127.0.0.1';
+const startPort = 7880;
 const roomNum = 10;
-const pushInterval = 10;
+const pushInterval = 100;
 const maxPushCount = 10000;
+
+const servers = [];
+let i = 0;
+while (i++ < serverNum) {
+    servers.push(host + ':' + (startPort + i - 1))
+}
+const rooms = [];
+i = 0;
+while (i++ < roomNum) {
+    rooms.push('room_' + i)
+}
+console.log('config', {
+    servers,
+    rooms,
+    pushInterval
+});
 
 const messageType = 'show';
 const messageData = {
