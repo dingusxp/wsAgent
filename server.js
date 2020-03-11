@@ -1,10 +1,5 @@
 /**
- * websocket server with agent/channel service
- * 
- * [TODO]
- * fork 子进程分担cpu耗时操作？
- * 消息超时检查 统一使用一个定时器，避免创建N多定时器损耗性能
- * query/message 数据传输协议使用二进制而非默认的json ？
+ * a websocket server with agent/channel service
  */
 
 const app = require('express')();

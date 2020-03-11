@@ -1,3 +1,4 @@
+# redis 存储说明
 ## 1, server conn info:
  - s_list  set  <serverId1, serverId2, ...>
  - s_[serverId]  string/hash  JSON: {host, last_active, connections, ...}
