@@ -14,7 +14,12 @@ module.exports = {
     },
     
     // logger
-    logger: {},
+    logger: {
+        handler: "consoleLog",
+        options: {
+            level: "info"
+        }
+    },
     
     // query queue
     queryQueue: {

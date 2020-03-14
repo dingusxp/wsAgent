@@ -21,8 +21,7 @@ const serverContext = Context.getServerContext();
 serverContext.socketIo = io;
 
 // logger
-const Logger = require("./lib/logger.js");
-const log = Logger.getDefaultLogHandler();
+const logger = require("./lib/logger.js").getDefaultLogHandler();
 
 // actions for handling client query
 const Action = require("./lib/action.js");
@@ -34,14 +33,14 @@ const Pusher = require("./lib/pusher.js");
 // query queue
 const QueryQueue = require("./lib/queryQueue.js");
 
-// ws service
+// ======== ws service ======== //
 const maxConnectionCount = Config.getConfig("maxConnectionCount") || 10000;
 const maxQueryQPS = Config.getConfig("maxQueryQPS") || 1000;
 io.on('connection', function(socket) {
 
     // 超过限额，拒绝连接
     if (serverContext.clientCount >= maxConnectionCount) {
-        log.warning("new connection refused - max connection reached!");
+        logger.warn("new connection refused - max connection reached!");
         socket.disconnect(true);
         return;
     }
@@ -50,7 +49,7 @@ io.on('connection', function(socket) {
     const clientId = socket.id + '@' + serverContext.serverId;
     const clientContext = Context.addClientContext(clientId, socket);
     serverContext.clientCount++;
-    // log.info(clientId + ": new connect");
+    // logger.info(clientId + ": new connect");
 
     // methods listen
     // _time
@@ -74,13 +73,13 @@ io.on('connection', function(socket) {
     socket.on('disconnect', function() {
 
         Context.dropClientContext(clientId);
-        // log.info("disconnected #" + clientId);
+        // logger.info("disconnected #" + clientId);
     });
 
     // query
     socket.on('query', function(query) {
 
-        // log.info(clientId + ": send query, param=" + JSON.stringify(query));
+        // logger.info(clientId + ": send query, param=" + JSON.stringify(query));
 
         // 限流
         if (serverContext.queryQPS > maxQueryQPS) {
@@ -120,7 +119,7 @@ io.on('connection', function(socket) {
 
         const resolve = function(data) {
 
-            // log.info(clientId + ": query handled, return=" + JSON.stringify(data));
+            // logger.info(clientId + ": query handled, return=" + JSON.stringify(data));
 
             if (false === data) {
                 return;
@@ -145,7 +144,7 @@ io.on('connection', function(socket) {
     });
 });
 
-// http api
+// ======== http api ======== //
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({
     extended: false
@@ -170,7 +169,7 @@ app.post('/message2client', function(req, res) {
 
     const param = req.body || {};
     if (typeof param.clientIds === 'undefined') {
-        log.info('[warning] bad push request, no clientIds given. param: ' + JSON.stringify(param));
+        logger.info('[warning] bad push request, no clientIds given. param: ' + JSON.stringify(param));
         res.send('fail');
         return;
     }
@@ -181,7 +180,7 @@ app.post('/message2client', function(req, res) {
         return;
     }
 
-    log.info('[info] request push to client: ' + JSON.stringify(param));
+    logger.info('[info] request push to client: ' + JSON.stringify(param));
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     param.clientIds.split(',').forEach(function(clientId) {
         Pusher.pushMessage2Client(clientId, pushMessage);
@@ -193,7 +192,7 @@ app.post('/message2user', function(req, res) {
 
     const param = req.body || {};
     if (typeof param.userIds === 'undefined') {
-        log.info('[warning] bad push request, no userIds given. param: ' + JSON.stringify(param));
+        logger.info('[warning] bad push request, no userIds given. param: ' + JSON.stringify(param));
         res.send('fail');
         return;
     }
@@ -204,7 +203,7 @@ app.post('/message2user', function(req, res) {
         return;
     }
 
-    log.info('[info] request push to user: ' + JSON.stringify(param));
+    logger.info('[info] request push to user: ' + JSON.stringify(param));
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     param.userIds.split(',').forEach(function(userId) {
         const clientId = serverContext.userClients[userId];
@@ -217,7 +216,7 @@ app.post('/message2channel', function(req, res) {
 
     const param = req.body || {};
     if (typeof param.channelName === 'undefined' || typeof param.type === "undefined") {
-        log.info('[warning] bad push request, no channelName/type given. param: ' + JSON.stringify(param));
+        logger.info('[warning] bad push request, no channelName/type given. param: ' + JSON.stringify(param));
         res.send('fail');
         return;
     }
@@ -228,7 +227,7 @@ app.post('/message2channel', function(req, res) {
         return;
     }
 
-    log.info('[info] request push to channel: ' + JSON.stringify(param));
+    logger.info('[info] request push to channel: ' + JSON.stringify(param));
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     Pusher.pushMessage2Channel(param.channelName, pushMessage);
 
@@ -237,5 +236,5 @@ app.post('/message2channel', function(req, res) {
 
 // listen
 http.listen(serverContext.serverPort, function() {
-    log.info(`agent server is ready: ws://${serverContext.serverHost}}/`);
+    logger.info(`agent server is ready: ws://${serverContext.serverHost}}/`);
 });
