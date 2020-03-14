@@ -1,8 +1,8 @@
-const Message = require("../lib/message.js");
-const Pusher = require("../lib/pusher.js");
-const Sender = require("../lib/sender.js");
-const Context = require("../lib/context.js");
-const Datastore = require("../lib/datastore.js");
+const Message = require("../../lib/message.js");
+const Pusher = require("../../lib/pusher.js");
+const Sender = require("../../lib/sender.js");
+const Context = require("../../lib/context.js");
+const Datastore = require("../../lib/datastore.js");
 
 const serverContext = Context.getServerContext();
 

@@ -25,7 +25,7 @@ const logger = require("./lib/logger.js").getDefaultLogHandler();
 
 // actions for handling client query
 const Action = require("./lib/action.js");
-const actions = Action.actions;
+const actions = Action.loadActions();
 
 // puser
 const Pusher = require("./lib/pusher.js");
@@ -99,17 +99,12 @@ io.on('connection', function(socket) {
             status: 200
         });
 
-        // priority level queue: add to queue
-        if (query.priority === Protocol.QUERY_PRIORITIES.LEVEL_QUEUE) {
-            query.context.serverId = serverContext.serverId;
-            query.context.serverHost = serverContext.serverHost;
-            query.context.clientId = clientId;
-            query.context.userId = clientContext.userId;
-            query.context.queryAt = (+new Date);
-
-            QueryQueue.addQueryToQueue(query);
-            return;
-        }
+        // context
+        query.context.serverId = serverContext.serverId;
+        query.context.serverHost = serverContext.serverHost;
+        query.context.clientId = clientId;
+        query.context.userId = clientContext.userId;
+        query.context.queryAt = (+new Date);
 
         // default: priority immidiate
         const actionName = query.action;
@@ -119,7 +114,7 @@ io.on('connection', function(socket) {
 
         const resolve = function(data) {
 
-            // logger.info(clientId + ": query handled, return=" + JSON.stringify(data));
+            logger.info(clientId + ": query handled, return=" + JSON.stringify(data));
 
             if (false === data) {
                 return;
@@ -154,7 +149,6 @@ app.get('/', function(req, res) {
 
     res.send("OK");
 });
-
 app.get('/status', function(req, res) {
 
     // 更新信息
@@ -162,6 +156,10 @@ app.get('/status', function(req, res) {
 
     const statusInfo = Context.getServerStatus();
     res.send(JSON.stringify(statusInfo));
+});
+app.get('/reloadActions', function(req, res) {
+    
+    actions = Action.loadActions();
 });
 
 const maxPushQPS = Config.getConfig("maxPushQPS") || 10000;

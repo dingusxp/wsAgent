@@ -1,3 +1,6 @@
+
+# just a demo, please modify to match your demand
+
 cd `dirname $0`
 
 basePort=8880

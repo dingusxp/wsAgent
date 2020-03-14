@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package loader;
+
+message User {
+  required int64 id = 1;
+  required string name = 2;
+}
+
+message UserList {
+  repeated User list = 1;
+  required int32 total = 2;
+}
+
+message ChatWords {
+    optional string room = 1;
+    optional string name = 2;
+    optional string words = 3;
+}

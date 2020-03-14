@@ -15,11 +15,11 @@
 
 ### 特点：
  - 支持同步方式（action）和异步方式（队列）处理请求；
- - action 机制支持热更新和失败自动重启；
+ - action 支持动态重新加载；
  - 支持三种维度（clientId/userId/channelId）向用户端推送信息；
- - 支持服务状态查看，动态服务限流、预警；
+ - 支持服务状态查看，服务限流；
  - 支持服务能力横向扩展（配合 redis 与 nginx）；
- - 支持 json、PB3 格式协议；
+ - 支持 json、pb3 格式协议；
 
 ### 性能：
 
@@ -42,7 +42,7 @@ cp _config.sample.js _config.js
 # 查看 _config.js 并根据注释修改必要项
 
 # 启动单实例
-node ./server.js > /tmp/server.log & 
+npm run start
 
 # 启动多实例
 sh cluster.sh

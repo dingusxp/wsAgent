@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package protocol;
+
+message Data {
+  required string loader = 1;
+  optional bytes buffer = 2;
+}
+
+message QueryContext {
+    optional int64 clientId = 1;
+    optional string userId = 2;
+}
+
+message MessageContext {
+    optional int64 queryId = 1;
+    optional string channelName = 2;
+}
+
+message Query {
+  required int64 id = 1;
+  required string action = 2;
+  optional Data param = 3;
+  optional int64 time = 4;
+  optional QueryContext context = 5;
+}
+
+message Message {
+  required int64 id = 1;
+  required string type = 2;
+  required Data data = 3;
+  optional int64 time = 4;
+  optional MessageContext context = 5;
+}
