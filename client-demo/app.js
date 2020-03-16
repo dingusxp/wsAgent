@@ -6,8 +6,10 @@ let fs = require('fs');
 // http static server
 // simple chatroom, just for fun
 const allowStaticResources = [
+    '/client.js',
     '/index.html',
-    '/client.js'
+    '/protobuf.min.js',
+    '/protocol.js'
 ];
 /*
 let resourceCache = {};

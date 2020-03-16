@@ -2,6 +2,16 @@ const QueryQueue = require("../../lib/queryQueue.js");
 const Datastore = require("../../lib/datastore.js");
 const Sender = require("../../lib/sender.js");
 
+// 无任务时，休息时间间隔（单位：ms）
+const REST_INTERVAL = 1000;
+
+// 碰到取任务错误是，延迟时间（单位：ms）
+const ON_ERROR_DELAY_TIME = 3000;
+
+// 超过多长时间的任务，不处理（单位：s）
+const EXPIRE_ACTION_TIME = 30
+
+// 该队列中的 action 的处理。
 const actions = {};
 actions.speak = function(query) {
 
@@ -36,23 +46,24 @@ actions.speak = function(query) {
     });
 };
 
+// 持续运行：取出任务分发action执行
 const consume = function() {
 
     QueryQueue.popQueryFromQueue("default").then(function(data) {
         if (!data) {
             // console.log("[info] empty list. have a rest");
-            setTimeout(consume, 100);
+            setTimeout(consume, REST_INTERVAL);
             return;
         }
         console.log("[info] process data: " + data);
         const query = JSON.parse(data);
-        const now = (+new Date);
         if (!query) {
             console.log("[error] bad data");
             consume();
             return;
         }
-        if (now - query.context.queryAt > 30000) {
+        const now = (+new Date);
+        if (now - query.context.queryAt > EXPIRE_ACTION_TIME * 1000) {
             console.log("[error] timeout");
             consume();
             return;
@@ -63,16 +74,22 @@ const consume = function() {
             consume();
             return;
         }
+        // do action
         const context = query.context;
-        actions[actionName](query).then(function() {
+        const resp = actions[actionName].call(context, query);
+        if (typeof resp === "object" && resp instanceof Promise) {
+            resp.then(function() {
+                consume();
+            }, function(err) {
+                console.log("[error] failed: " + err)
+                consume();
+            });
+        } else {
             consume();
-        }, function(err) {
-            console.log("[error] failed: " + err)
-            consume();
-        });
+        }
     }, function(err) {
         console.log("[error] system error: " + err);
-        setTimeout(consume, 500);
+        setTimeout(consume, ON_ERROR_DELAY_TIME);
         return;
     });
 };

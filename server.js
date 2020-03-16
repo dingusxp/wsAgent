@@ -7,9 +7,9 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const fs = require('fs');
 
-// protocol
-const Protocol = require("./lib/protocol.js");
+// message & protocol
 const Message = require("./lib/message.js");
+const Protocol = require("./lib/protocol.js");
 
 // config
 const Config = require("./lib/config.js");
@@ -24,14 +24,10 @@ serverContext.socketIo = io;
 const logger = require("./lib/logger.js").getDefaultLogHandler();
 
 // actions for handling client query
-const Action = require("./lib/action.js");
-const actions = Action.loadActions();
+const actions = require("./lib/action.js").loadActions();
 
 // puser
 const Pusher = require("./lib/pusher.js");
-
-// query queue
-const QueryQueue = require("./lib/queryQueue.js");
 
 // ======== ws service ======== //
 const maxConnectionCount = Config.getConfig("maxConnectionCount") || 10000;
@@ -49,7 +45,7 @@ io.on('connection', function(socket) {
     const clientId = socket.id + '@' + serverContext.serverId;
     const clientContext = Context.addClientContext(clientId, socket);
     serverContext.clientCount++;
-    // logger.info(clientId + ": new connect");
+    logger.trace(clientId + ": new connect");
 
     // methods listen
     // _time
@@ -73,13 +69,22 @@ io.on('connection', function(socket) {
     socket.on('disconnect', function() {
 
         Context.dropClientContext(clientId);
-        // logger.info("disconnected #" + clientId);
+        logger.trace("disconnected #" + clientId);
     });
 
     // query
     socket.on('query', function(query) {
-
-        // logger.info(clientId + ": send query, param=" + JSON.stringify(query));
+        
+        // 解析协议
+        query = Protocol.parseQuery(query);
+        if (!query) {
+            socket.emit("_ack", {
+                status: 403
+            });
+            return;
+        }
+        
+        // logger.debug(clientId + ": send query, param=" + JSON.stringify(query));
 
         // 限流
         if (serverContext.queryQPS > maxQueryQPS) {
@@ -109,12 +114,13 @@ io.on('connection', function(socket) {
         // default: priority immidiate
         const actionName = query.action;
         if (!actionName || !actions[actionName]) {
+            logger.trace(`bad action: ${actionName}`, query.context);
             return false;
         }
 
         const resolve = function(data) {
 
-            logger.info(clientId + ": query handled, return=" + JSON.stringify(data));
+            // logger.debug(clientId + ": query handled, return=" + JSON.stringify(data));
 
             if (false === data) {
                 return;
@@ -156,10 +162,6 @@ app.get('/status', function(req, res) {
 
     const statusInfo = Context.getServerStatus();
     res.send(JSON.stringify(statusInfo));
-});
-app.get('/reloadActions', function(req, res) {
-    
-    actions = Action.loadActions();
 });
 
 const maxPushQPS = Config.getConfig("maxPushQPS") || 10000;

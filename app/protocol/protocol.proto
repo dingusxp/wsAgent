@@ -20,8 +20,8 @@ message MessageContext {
 message Query {
   required int64 id = 1;
   required string action = 2;
-  optional Data param = 3;
-  optional int64 time = 4;
+  required Data param = 3;
+  required int64 time = 4;
   optional QueryContext context = 5;
 }
 
@@ -29,6 +29,6 @@ message Message {
   required int64 id = 1;
   required string type = 2;
   required Data data = 3;
-  optional int64 time = 4;
+  required int64 time = 4;
   optional MessageContext context = 5;
 }

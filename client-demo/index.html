@@ -21,11 +21,12 @@
                 </div>
                 <div style="padding: 8px 0;">
                     <input type="text" maxlength="255" placeholder="请输入聊天内容，按Enter提交" id="content" style="width: 320px;">
-                    <button type="button" id="btn-submit">提交</button>
+                    <button type="button" id="btn-submit" disabled="disabled">提交</button>
                 </div>
             </div>
         </div>
         <script src="https://cdn.bootcss.com/socket.io/2.0.4/socket.io.js"></script>
+        <script src="./protobuf.min.js"></script>
         <script src="./client.js"></script>
         <script type="text/javascript">
             const room = "null98";
@@ -34,16 +35,28 @@
                 userId: randId,
                 name: "random #" + randId
             };
-            let port = 8888;
-			if (randId % 2 === 0) {
-				// port = 8889;
-			}
-            const agent = new Agent('ws://127.0.0.1:' + port);
+            
+            const enableChat = function() {
+                console.log("enjoy your chat time");
+                document.getElementById('btn-submit').disabled = false;
+            };
+            const disableChat = function() {
+                console.log("chat disabled. please refresh and try again.");
+                document.getElementById('btn-submit').disabled = true;
+            };
+            
+            const agent = new Agent('ws://127.0.0.1:8888');
+            agent.enablePb3('./protocol.js', ['ChatWords']);
             const doLogin = function() {
                 agent.auth(user, function() {
                     agent.subscribeChannel(room, function() {
                         console.log(user.name + " has logined");
+                        enableChat();
+                    }, function() {
+                        console.log("join room failed!");
                     });
+                }, function() {
+                    console.log("do login failed!");
                 });
             };
             agent.onConnected(function() {
@@ -55,10 +68,11 @@
             });
             agent.onDisconnect(function(reason) {
                 console.log("disconnect callback... reason: " + reason);
+                disableChat();
             });
             
             agent.setMessageHandler("show", function(data) {
-                console.log(data);
+                // console.log(data);
                 const content = "<p style=\"padding: 5px 10px; border-bottom: #ccc 1px dashed;\">" +
                                 "  <em>" + (data.name === user.name ? "我" : data.name) + " : </em>" +
                                 "  <span>" + data.words + "</span>" +
@@ -73,15 +87,14 @@
             const speak = function() {
                 const words = document.getElementById("content").value;
                 const param = {
-                    channelName: room,
+                    room: room,
                     name: user.name,
                     words: words
                 };
                 document.getElementById("content").value = "";
-                agent.query("speak", param);
-                // agent.query("speak", param, null, null, {priority: QUERY_PRIORITIES.LEVEL_QUEUE});
+                agent.query("speak", Protocol.obj2pb3Data('ChatWords', param));
             };
-                
+
             // start chat 
             document.getElementById("content").onkeydown = function(e) {
                 e = e || event;
