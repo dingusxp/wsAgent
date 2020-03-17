@@ -1,14 +1,17 @@
 /**
- * 与 wsAgent server 交互对应的客户端，浏览器 或 node 环境均可使用
+ * 与 wsAgent server 交互对应的客户端，浏览器 或 vue/node 环境均可使用
  */
 
 let runMode = "browser";
 let socketIo = null;
+let protobufJs = null;
 if (typeof io === "undefined") {
     socketIo = require('socket.io-client');
+    protobufJs = require("protobufjs");
     runMode = "node-cli";
 } else {
     socketIo = io;
+    protobufJs = protobuf;
 }
 
 // =====================  protocol.js  ========================//
@@ -36,13 +39,13 @@ const protocolConfig = {
 const pb3 = {};
 const doLoadPb3 = function(protoJsPath, loaderNames) {
     
-    if (typeof protobuf === "undefined") {
+    if (typeof protobufJs === "undefined") {
         console.log("protobuf.js is not loaded");
         return false;
     }
     
     // load pb3
-    protobuf.load(protoJsPath, function(err, root) {
+    protobufJs.load(protoJsPath, function(err, root) {
         
         if (err) {
             console.log("load protocol failed! " + err);
@@ -67,10 +70,16 @@ const doLoadPb3 = function(protoJsPath, loaderNames) {
 const parseMessage = function(message) {
     
     // pb 格式
-    if (message && message.constructor === Uint8Array && protocolConfig.enablePb3) {
-        if (!pb3.protocol || !pb3.protocol.Message) {
+    if (message && message.constructor === ArrayBuffer || message.constructor === Uint8Array) {
+        if (!protocolConfig.enablePb3 || !pb3.protocol || !pb3.protocol.Message) {
+            console.log("parse message failed: pb3 is not enabled.");
             return false;
         }
+        // format
+        if (message.constructor === ArrayBuffer) {
+            message = new Uint8Array(message);
+        }
+        
         const newMessage = pb3.protocol.Message.decode(message);
         newMessage["data"] = pb3Data2obj(newMessage["data"]);
         return newMessage;
@@ -89,7 +98,7 @@ const parseMessage = function(message) {
  * @param {Object} query
  */
 const wrapQuery = function(query) {
-    
+
     // 简单判断一下
     if (typeof query !== "object" || !query.id) {
         return false;
@@ -328,7 +337,7 @@ let Agent = function(agentServer) {
         messageHandlers[type] = callback;
     };
     socket.on("message", function(message) {
-        
+
         message = Protocol.parseMessage(message);
 
         if (typeof message !== "object" || !message.id) {

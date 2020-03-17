@@ -1,28 +1,24 @@
 # wsAgent
 ## 介绍
- > 一个 nodejs 写的 websocket 用户服务中间层，维护与端用户的长连接，以方便系统处理用户请求或主动推送消息给用户。
+ > 一个 nodejs 写的 websocket 用户服务中间层，维护与端用户的长连接，方便系统处理用户请求或主动推送消息给用户。
 
 ### 依赖
  - npm package: 见 package.json
  - redis server
- - nginx （如果开启集群模式）
+ - nginx （如果开启集群模式，建议搭配使用）
 
 ### 功能：
- - 客户端：与服务端建立长连接，注册用户ID，订阅频道，发送请求，接收推送；
- - 服务端：接收客户端连接，维护用户连接态，维护频道，按配置转发请求，接收（系统）推送请求发送消息至用户；
- - 服务端扩展 action：服务端支持动态加载 action 下的脚本，并处理分发过来的实时请求；
+ - 客户端：与服务端建立长连接，注册用户ID，订阅/取消订阅频道，发送请求，接收推送；
+ - 服务端：与客户端建立长连接，维护用户连接态，维护频道，处理请求，接收（其它系统）推送请求转发消息至用户；
+ - 服务端扩展 action：服务端支持（动态）加载 action 下的脚本，扩展对用户请求的处理能力；
  - 服务端扩展 consumer：服务端提供一种简易队列消费方式，支持扩展脚本，异步处理加入队列的请求；
 
 ### 特点：
- - 支持同步方式（action）和异步方式（队列）处理请求；
- - action 支持动态重新加载；
- - 支持三种维度（clientId/userId/channelId）向用户端推送信息；
- - 支持服务状态查看，服务限流；
- - 支持服务能力横向扩展（配合 redis 与 nginx）；
  - 支持 json、pb3 格式协议；
-
-### 性能：
-
+ - 支持扩展实例的方式实现服务能力横向扩展；
+ - action 处理 和 pb3协议定义 支持自动检测变更并重新加载；
+ - 支持三种维度（clientId/userId/channelId）主动向用户端推送消息；
+ - 支持 服务状态监控、访问控制、日志配置 等服务治理辅助手段；
 
 ## 开始使用
 ### 服务端
@@ -38,21 +34,46 @@ git clone https://github.com/dingusxp/wsAgent.git
 cd wsAgent
 npm install
 
-cp _config.sample.js _config.js
-# 查看 _config.js 并根据注释修改必要项
+cp app/config.sample.js app/config.js
+# 查看 config.js 并根据注释修改必要项
 
 # 启动单实例
 npm run start
 
 # 启动多实例
-sh cluster.sh
+# sh cluster.sh
 ```
 说明：windows（不建议用于生产环境）可使用 git bash 执行上述命令。
 
 ### 客户端：
 原生引用：
+```html
+<script src="https://cdn.bootcss.com/socket.io/2.0.4/socket.io.js"></script>
+<script src="./protobuf.min.js"></script><!-- // 如果需要 pb3格式协议支持 // -->
+<script src="./client.js"></script>
+```
 
-
+详细参见 client-demo/index.html ，
 
 vue 引用：
+```javascript
+// 请先用 npm 安装 socket.io-client  和 protobufjs
+// 然后引用即可
+import {Agent, Protocol} from '/lib/client.js';
+```
+
+使用上参考 client-demo/index.html，修改一些回调函数内的写法，将直接操作 dom 改为 MVVM 模式即可。
+
+node cli 引用：
+```javascript
+// 请先用 npm 安装 socket.io-client  和 protobufjs
+const Client = require("/lib/client.js");
+const Agent = Client.Agent;
+const Protocol = Client.Protocol;
+```
+
+使用同上，参考即可。
+
+## 性能
+
 

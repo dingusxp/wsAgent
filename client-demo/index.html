@@ -45,8 +45,11 @@
                 document.getElementById('btn-submit').disabled = true;
             };
             
+            // 连接 ws agent server 
             const agent = new Agent('ws://127.0.0.1:8888');
+            // 可选 开启 pb3 支持
             agent.enablePb3('./protocol.js', ['ChatWords']);
+            // 一些回调，请根据实际需要修改
             const doLogin = function() {
                 agent.auth(user, function() {
                     agent.subscribeChannel(room, function() {
@@ -71,6 +74,7 @@
                 disableChat();
             });
             
+            // 设置推送消息的回调处理函数，请根据需要扩展
             agent.setMessageHandler("show", function(data) {
                 // console.log(data);
                 const content = "<p style=\"padding: 5px 10px; border-bottom: #ccc 1px dashed;\">" +
@@ -83,7 +87,8 @@
                 $msg.appendChild(elem);
                 $msg.scrollTop = $msg.scrollHeight;
             });
-
+            
+            // 发送请求 应用实例
             const speak = function() {
                 const words = document.getElementById("content").value;
                 const param = {
@@ -92,7 +97,9 @@
                     words: words
                 };
                 document.getElementById("content").value = "";
-                agent.query("speak", Protocol.obj2pb3Data('ChatWords', param));
+                agent.query("speak", param);
+                // 如果启用 pb3，使用下面方式编码 param，则整个 query 将自动编码为 pb3 Query 发送
+                // agent.query("speak", Protocol.obj2pb3Data('ChatWords', param));
             };
 
             // start chat 
