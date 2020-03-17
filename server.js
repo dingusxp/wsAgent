@@ -75,6 +75,8 @@ io.on('connection', function(socket) {
     // query
     socket.on('query', function(query) {
         
+        const now = (+new Date);
+        
         // 解析协议
         query = Protocol.parseQuery(query);
         if (!query) {
@@ -84,7 +86,7 @@ io.on('connection', function(socket) {
             return;
         }
         
-        logger.debug(clientId + ": send query", query);
+        logger.debug(`${clientId} send query #${query.id}`, query);
 
         // 限流
         if (serverContext.queryQPS > maxQueryQPS) {
@@ -96,7 +98,7 @@ io.on('connection', function(socket) {
         }
 
         serverContext.queryCount++;
-        serverContext.lastActiveAt = (+new Date);
+        serverContext.lastActiveAt = now;
 
         // _ack
         socket.emit("_ack", {
@@ -105,22 +107,24 @@ io.on('connection', function(socket) {
         });
 
         // context
-        query.context.serverId = serverContext.serverId;
-        query.context.serverHost = serverContext.serverHost;
-        query.context.clientId = clientId;
-        query.context.userId = clientContext.userId;
-        query.context.queryAt = (+new Date);
+        queryContext = query.context || {};
+        queryContext.queryAt = query.time;
+        queryContext.ReceiveAt = now;
+        queryContext.serverId = serverContext.serverId;
+        queryContext.serverHost = serverContext.serverHost;
+        queryContext.clientId = clientId;
+        queryContext.userId = clientContext.userId;
 
         // default: priority immidiate
         const actionName = query.action;
         if (!actionName || !actions[actionName]) {
-            logger.trace(`bad action: ${actionName}`, query.context);
+            logger.trace(`bad action: ${actionName} for query ${clientId} #${query.id}`, query);
             return false;
         }
 
         const resolve = function(data) {
 
-            logger.debug(clientId + ": query handled", data);
+            logger.debug(`${clientId} query #${query.id} handled.`, data);
 
             if (false === data) {
                 return;
@@ -136,7 +140,7 @@ io.on('connection', function(socket) {
         };
 
         // allow action method return data/Promise instance
-        const resp = actions[actionName].call(clientContext, query.param || {});
+        const resp = actions[actionName].call(clientContext, query.param || {}, queryContext);
         if (typeof resp === "object" && resp instanceof Promise) {
             resp.then(resolve);
         } else {

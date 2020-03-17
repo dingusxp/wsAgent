@@ -75,13 +75,18 @@ const parseMessage = function(message) {
             console.log("parse message failed: pb3 is not enabled.");
             return false;
         }
+        console.log("message before", message);
         // format
         if (message.constructor === ArrayBuffer) {
             message = new Uint8Array(message);
         }
+        console.log("message after", message);
         
         const newMessage = pb3.protocol.Message.decode(message);
         newMessage["data"] = pb3Data2obj(newMessage["data"]);
+        // 解构可以使 pb3 与 json 格式一致
+        // newMessage["data"] = {...newMessage["data"]};
+        // newMessage["context"] = {...newMessage["context"]};
         return newMessage;
     }
 

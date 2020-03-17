@@ -1,6 +1,7 @@
-const QueryQueue = require("../../lib/queryQueue.js");
-const Datastore = require("../../lib/datastore.js");
-const Sender = require("../../lib/sender.js");
+const QueryQueue = require("../../../lib/queryQueue.js");
+const Datastore = require("../../../lib/datastore.js");
+const Sender = require("../../../lib/sender.js");
+const Protocol = require("../../../lib/protocol.js");
 
 // 无任务时，休息时间间隔（单位：ms）
 const REST_INTERVAL = 1000;
@@ -13,18 +14,21 @@ const EXPIRE_ACTION_TIME = 30
 
 // 该队列中的 action 的处理。
 const actions = {};
-actions.speak = function(query) {
+actions.speak = function(param) {
 
+    // 未登录，不允许发言
+    if (!this.userId) {
+        console.log("bad param: user not login");
+        return false;
+    }
+    if (!param.room) {
+        console.log("bad param: no room specified");
+        return false;
+    }
+        
     return new Promise(function(resolve, fail) {
 
-        // 未登录，不允许发言
-        if (!query.context.userId) {
-            fail("user not login");
-            return;
-        }
-
-        const param = query.param;
-        const channelName = (param.channelName || "default");
+        const channelName = param.room;
         const data = {
             name: (param.name || "noname"),
             words: param.words
@@ -37,7 +41,12 @@ actions.speak = function(query) {
                 return;
             }
             serverIds.forEach(function(serverId) {
+                console.log("send", {channelName, data});
                 Sender.sendChannelMessage2Server(serverId, channelName, "show", data);
+                // send with pb3. 
+                // Note: not ready! ( buffer 通过 json 传递会丢失信息 )
+                // const pb3Data = Protocol.obj2pb3Data("ChatWords", data);
+                // Sender.sendChannelMessage2Server(serverId, channelName, "show", pb3Data);
             });
             resolve();
         }, function(err) {
@@ -76,7 +85,7 @@ const consume = function() {
         }
         // do action
         const context = query.context;
-        const resp = actions[actionName].call(context, query);
+        const resp = actions[actionName].call(context, query.param);
         if (typeof resp === "object" && resp instanceof Promise) {
             resp.then(function() {
                 consume();
