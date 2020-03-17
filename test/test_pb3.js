@@ -18,7 +18,7 @@ protobuf.load("./_pb3.demo.proto", function(err, root) {
             pb3[ns][name] = root.lookupType(`${ns}.${name}`);
         }
     }
-    console.log("pb3 loaded", pb3);
+    // console.log("pb3 loaded", pb3);
 
     // test encode
     const data = {
@@ -29,10 +29,16 @@ protobuf.load("./_pb3.demo.proto", function(err, root) {
         regtime: 1234567890
     };
     const buffer = pb3.demo.User.encode(pb3.demo.User.create(data)).finish();
-    console.log("encoded", buffer);
+    console.log("buffer", buffer);
+    
+    const jsonStr = JSON.stringify(buffer);
+    console.log("jsonStr", jsonStr);
+    const tmpBuffer = JSON.parse(jsonStr);
+    const parsedBuffer = Buffer.from(tmpBuffer.data);
+    console.log("parsedBuffer", parsedBuffer);
 
     // test decode
-    const user = pb3.demo.User.decode(buffer);
-    console.log("decoded", user);
+    const user = pb3.demo.User.decode(parsedBuffer);
+    console.log("decodedData", user);
 });
 

@@ -41,10 +41,8 @@ actions.speak = function(param) {
                 return;
             }
             serverIds.forEach(function(serverId) {
-                console.log("send", {channelName, data});
                 Sender.sendChannelMessage2Server(serverId, channelName, "show", data);
-                // send with pb3. 
-                // Note: not ready! ( buffer 通过 json 传递会丢失信息 )
+                // or send with pb3. 
                 // const pb3Data = Protocol.obj2pb3Data("ChatWords", data);
                 // Sender.sendChannelMessage2Server(serverId, channelName, "show", pb3Data);
             });

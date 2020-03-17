@@ -183,7 +183,7 @@ app.post('/message2client', function(req, res) {
         res.send('max push reached');
         return;
     }
-
+    
     logger.debug('[info] request push to client. ', param);
     const pushMessage = Message.create(param.type || "", param.data || {}, param.context || {});
     param.clientIds.split(',').forEach(function(clientId) {
