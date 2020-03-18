@@ -1,21 +1,20 @@
+/**
+ * 与 wsAgent server 交互对应的客户端，浏览器 或 vue/node 环境均可使用
+ */
+
 let runMode = "browser";
 let socketIo = null;
+let protobufJs = null;
 if (typeof io === "undefined") {
     socketIo = require('socket.io-client');
+    protobufJs = require("protobufjs");
     runMode = "node-cli";
 } else {
     socketIo = io;
+    protobufJs = protobuf;
 }
 
 // =====================  protocol.js  ========================//
-/**
- * query priority
- */
-const QUERY_PRIORITIES = {
-    LEVEL_IMMIDIATE: 1,
-    LEVEL_QUEUE: 2
-    // LEVEL_UNNESSARY: 9
-};
 
 /**
  * internal query action
@@ -33,10 +32,136 @@ const INTERNAL_MESSAGE_TYPIES = {
     CALLACK: '_callback'
 };
 
+// pb3
+const protocolConfig = {
+    enablePb3: false,
+};
+const pb3 = {};
+const doLoadPb3 = function(protoJsPath, loaderNames) {
+    
+    if (typeof protobufJs === "undefined") {
+        console.log("protobuf.js is not loaded");
+        return false;
+    }
+    
+    // load pb3
+    protobufJs.load(protoJsPath, function(err, root) {
+        
+        if (err) {
+            console.log("load protocol failed! " + err);
+            return;
+        }
+        pb3["protocol"] = {};
+        pb3["protocol"]["Query"] = root.lookupType("protocol.Query");
+        pb3["protocol"]["Message"] = root.lookupType("protocol.Message");
+        pb3["loader"] = {};
+        loaderNames.forEach((name) => {
+            pb3["loader"][name] = root.lookupType(`loader.${name}`);
+        });
+        
+        protocolConfig.enablePb3 = true;
+    });
+};
+
+/**
+ * 解析 message （如果是 pb3 格式，自动解析）
+ * @param {Object} message
+ */
+const parseMessage = function(message) {
+    
+    // pb 格式
+    if (message && message.constructor === ArrayBuffer || message.constructor === Uint8Array) {
+        if (!protocolConfig.enablePb3 || !pb3.protocol || !pb3.protocol.Message) {
+            console.log("parse message failed: pb3 is not enabled.");
+            return false;
+        }
+        console.log("message before", message);
+        // format
+        if (message.constructor === ArrayBuffer) {
+            message = new Uint8Array(message);
+        }
+        console.log("message after", message);
+        
+        const newMessage = pb3.protocol.Message.decode(message);
+        newMessage["data"] = pb3Data2obj(newMessage["data"]);
+        // 解构可以使 pb3 与 json 格式一致
+        // newMessage["data"] = {...newMessage["data"]};
+        // newMessage["context"] = {...newMessage["context"]};
+        return newMessage;
+    }
+
+    // 简单检查一下
+    if (typeof message !== "object" || !message.id) {
+        return false;
+    }
+    
+    return message;
+}
+
+/**
+ * 处理待推送的 query，如果配置了 pb3，自动编码
+ * @param {Object} query
+ */
+const wrapQuery = function(query) {
+
+    // 简单判断一下
+    if (typeof query !== "object" || !query.id) {
+        return false;
+    }
+    
+    // 未开启 pb3 直接返回
+    if (!protocolConfig.enablePb3 || !pb3.protocol || !pb3.protocol.Query) {
+        return query;
+    }
+    
+    // 如果 param 满足 pb3 Data 格式，则整个信息编码为 pb3
+    if (typeof query.param === "object" && query.param.loader && query.param.buffer) {
+        const queryObj = pb3.protocol.Query.encode(pb3.protocol.Query.create(query)).finish();
+        const queryBuffer = queryObj.buffer.slice(queryObj.byteOffset, queryObj.byteOffset + queryObj.byteLength);
+        return queryBuffer;
+    }
+
+    return query;
+}
+
+/**
+ * 将对象转为 pb3 Data 格式
+ * @param {Object} loader
+ * @param {Object} obj
+ */
+const obj2pb3Data = function(loader, obj) {
+    
+    if (!protocolConfig.enablePb3 || !pb3.loader || !pb3.loader[loader]) {
+        return false;
+    }
+    return {loader, "buffer": pb3.loader[loader].encode(pb3.loader[loader].create(obj)).finish()};
+}
+
+/**
+ * 解析 pb3 Data 数据为 对象
+ * @param {Object} pb3Data
+ *  + loader
+ *  + buffer
+ */
+const pb3Data2obj = function(pb3Data) {
+    
+    if (!pb3Data.loader || !pb3Data.buffer) {
+        return pb3Data;
+    }
+    if (!pb3.loader || !pb3.loader[pb3Data.loader]) {
+        return false;
+    }
+    return pb3.loader[pb3Data.loader].decode(pb3Data.buffer);
+}
+
 const Protocol = {
-    QUERY_PRIORITIES,
     INTERNAL_QUERY_ACTIONS,
-    INTERNAL_MESSAGE_TYPIES
+    INTERNAL_MESSAGE_TYPIES,
+    doLoadPb3,
+    parseMessage,
+    wrapQuery,
+    pb3Data2obj,
+    obj2pb3Data
 };
 
 
@@ -56,11 +181,8 @@ const fixServerUrl = function(serverUrl) {
 const DEFAULT_TIME_CALIBRATION_INTERVAL = 300;
 
 // query timeout（单位：s）
-const DEFAULT_QUERY_ACK_TIMEOUT = 50;
-const DEFAULT_QUERY_RESPONSE_TIMEOUT = 30;
-
-// priority
-const DEFAULT_QUERY_PRIORITY = Protocol.QUERY_PRIORITIES.LEVEL_IMMIDIATE;
+const DEFAULT_QUERY_ACK_TIMEOUT = 3;
+const DEFAULT_QUERY_RESPONSE_TIMEOUT = 6;
 
 // agent part
 let agentInstances = {};
@@ -105,11 +227,16 @@ let Agent = function(agentServer) {
     });
     // 连接后 立即做一次对时
     sendTimeCalibration();
+    
+    // pb3 支持
+    agent.enablePb3 = function(protoJsPath, loaderNames) {
+        Protocol.doLoadPb3(protoJsPath, loaderNames);
+    };
 
     // common query
     let queryId = 0;
     const querySet = {};
-    agent.query = function(action, param, responseCallback, timeoutCallback, option = {}, context = {}) {
+    agent.query = function(action, param, responseCallback = null, timeoutCallback = null, option = {}, context = {}) {
 
         queryId++;
         const queryInfo = {
@@ -117,17 +244,19 @@ let Agent = function(agentServer) {
             action: action,
             param: param,
             time: agent.getServerTime(),
-            priority: option.priority || DEFAULT_QUERY_PRIORITY,
-            option: option,
             context: context
         };
-        socket.emit("query", queryInfo);
+        
+        socket.emit("query", Protocol.wrapQuery(queryInfo));
 
+        // check ack/response
+        if (!responseCallback && !timeoutCallback) {
+            return;
+        }
         querySet[queryId] = {
             query: queryInfo,
             status: "sent",
-            queryTime: (+new Date),
-            queryAt: queryInfo.time,
+            queryAt: (+new Date),
             ackAt: 0,
             responseAt: 0,
             responseCallback: typeof responseCallback === "function" ? responseCallback : null,
@@ -138,18 +267,22 @@ let Agent = function(agentServer) {
         checkQueryTimeout(queryId, ackTimeout, responseTimeout);
     };
     socket.on('_ack', function(data) {
+        
         const queryId = data.queryId;
         if (!querySet[queryId]) {
             return;
         }
 
-        // [TODO] check data.status: 200 OK, 503: system busy
+        // [TODO] check data.status: 
+        // 200 OK, 
+        // 403 Bad request
+        // 503 System error
 
         querySet[queryId].status = "acked";
         querySet[queryId].ackAt = (+new Date);
 
         // update latency
-        latency = (+new Date) - querySet[queryId].queryTime;
+        latency = querySet[queryId].ackAt - querySet[queryId].queryAt;
     });
     // 请求超时处理
     const queryTimeoutCallback = function(queryId) {
@@ -207,13 +340,12 @@ let Agent = function(agentServer) {
             return;
         }
         messageHandlers[type] = callback;
-        // console.log("[info] registerred message type handler: " + type);
     };
     socket.on("message", function(message) {
 
-        // console.log("[info] receive messge: " + JSON.stringify(message));
+        message = Protocol.parseMessage(message);
 
-        if (typeof message !== "object") {
+        if (typeof message !== "object" || !message.id) {
             console.log("bad message: " + message);
             return false;
         }

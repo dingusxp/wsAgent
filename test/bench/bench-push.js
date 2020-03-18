@@ -1,12 +1,18 @@
+/**
+ * 主动推送消息测试
+ * 可配合 bench.js 使用（关闭 bench.js 的定时 speak）
+ */
+const Sender = require("../../lib/sender.js");
 
-const Sender = require("../lib/sender.js");
-
-const serverNum = 1;
 const host = '127.0.0.1';
-const startPort = 7880;
-const roomNum = 10;
-const pushInterval = 100;
-const maxPushCount = 10000;
+const startPort = 8888;
+const serverNum = 1;
+const roomNum = 100;
+// 每一批（所有server的所有room）推送间隔
+// 此处使用 timeout，所以实际间隔还要加上调用推送接口的时间
+const pushInterval = 1000;
+// 总的推送批次数
+const maxPushCount = 1000;
 
 const servers = [];
 let i = 0;
@@ -15,24 +21,28 @@ while (i++ < serverNum) {
 }
 const rooms = [];
 i = 0;
-while (i++ < roomNum) {
-    rooms.push('room_' + i)
+while (i < roomNum) {
+    rooms.push('room_' + i);
+    i++;
 }
-console.log('config', {
-    servers,
-    rooms,
-    pushInterval
-});
+// console.log('config', {servers,rooms,pushInterval});
 
 const messageType = 'show';
 const messageData = {
     name: "noname",
     words: "this is a test"
 };
-const pushIndex = 0;
+let pushIndex = 0;
 const SEND_TIMEOUT = 5000;
+const reportInfo = {
+    pushIndex: 0,
+    totalExpectCount: 0,
+    totalSuccessCount: 0,
+    totalCompleteCount: 0
+};
 function sendOnebyOne() {
     pushIndex++;
+    reportInfo.pushIndex = pushIndex;
     if (pushIndex >= maxPushCount) {
         console.log('all done');
         return;
@@ -43,12 +53,16 @@ function sendOnebyOne() {
     let completeCnt = 0;
     servers.forEach((server) => {
         rooms.forEach((room) => {
+            reportInfo.totalExpectCount++;
             expectCnt++;
             Sender.sendChannelMessage2Server(server, room, messageType, messageData).then(function() {
                 successCnt++;
                 completeCnt++;
+                reportInfo.totalSuccessCount++;
+                reportInfo.totalCompleteCount++;
             }, function() {
                 completeCnt++;
+                reportInfo.totalCompleteCount++;
             });
         });
     });
@@ -71,3 +85,7 @@ function sendOnebyOne() {
     nextSend();
 }
 sendOnebyOne();
+
+setInterval(() => {
+    console.log("report", reportInfo);
+}, 5000);
