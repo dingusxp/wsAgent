@@ -39,6 +39,6 @@ module.exports = {
     },
     
     // server context refresh time interval
-    serverContextRefreshInterval: 5,
+    serverContextRefreshInterval: 10,
     serverDumpUserInterval: 120
 };

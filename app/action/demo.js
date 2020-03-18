@@ -51,6 +51,8 @@ actions.speak = function(param, queryContext) {
                 // Pusher.pushMessage2Channel(channelName, Message.create('show', pb3Data));
                 return;
             }
+            // [NOTE] 这里偷懒了，直接用 serverId 作为 serverHost；
+            // 如果 serverId 自定义了，这里需要先通过 Datastore根据 serverId 获取 serverHost
             Sender.sendChannelMessage2Server(serverId, channelName, "show", data);
         });
     });
