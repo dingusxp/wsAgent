@@ -33,7 +33,40 @@ const Pusher = require("./lib/pusher.js");
 // ======== ws service ======== //
 const maxConnectionCount = Config.getConfig("maxConnectionCount") || 10000;
 const maxQueryQPS = Config.getConfig("maxQueryQPS") || 1000;
+// 
+const maxConnectionQPS = Config.getConfig("maxConnectionQPS") || 1000;
+const connectionHitCount = 1000;
+let lastConnectionHitAt = 0;
+let connectionCount = 0;
+let lockConnectionFlag = false;
 io.on('connection', function(socket) {
+    
+    // lock flag
+    if (lockConnectionFlag) {
+        socket.emit("_ack", {
+            status: 503
+        });
+        return;
+    }
+    
+    // connection qps
+    connectionCount++;
+    if (connectionCount >= connectionHitCount) {
+        const now = (+new Date);
+        // 如果 qps 超限，锁住 1s 不接受新连接
+        // 说明：当前请求放行
+        if (1000 * connectionCount / (now - lastConnectionHitAt) >= maxConnectionQPS) {
+            lockConnectionFlag = true;
+            setTimeout(() => {
+                lockConnectionFlag = false;
+                lastConnectionHitAt = now;
+            }, 1000);
+        }
+        
+        // 重新计数
+        lastConnectionHitAt = now;
+        connectionCount = 0;
+    }
 
     // 超过限额，拒绝连接
     if (serverContext.clientCount > maxConnectionCount) {

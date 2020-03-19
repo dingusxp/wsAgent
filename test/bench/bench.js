@@ -10,7 +10,7 @@ const Config = {
     // 每个client发言频率 及 发言动作关闭时间 （单位：s）
     // 可以设为 0，表示都不发言
     clientSpeakInterval: 60,
-    speakLastTime: 600,
+    speakLastTime: 300,
     // 批量开 测试用例 时设置
     benchId: 0,
     // （一个测试实例）开启多少个连接
