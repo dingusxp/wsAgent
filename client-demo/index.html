@@ -62,13 +62,17 @@
                     console.log("do login failed!");
                 });
             };
+            // 连接成功回调
+            // 注意：重新连接 并连接成功时也会触发
             agent.onConnected(function() {
                 console.log("connect callback...");
                 doLogin();
             });
+            // 尝试重新连接时的回调
             agent.onReconnect(function(attemptNumber) {
                 console.log("reconnect callback... attempt #" + attemptNumber);
             });
+            // 断开连接回调
             agent.onDisconnect(function(reason) {
                 console.log("disconnect callback... reason: " + reason);
                 disableChat();

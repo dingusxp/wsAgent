@@ -21,6 +21,7 @@ if (typeof io === "undefined") {
  */
 const INTERNAL_QUERY_ACTIONS = {
     AUTH: '_auth',
+    QUIT: '_quit',
     SUBSCRIBE: '_subscribe',
     UNSUBSCRIBE: '_unsubscribe'
 };
@@ -317,6 +318,12 @@ let Agent = function(agentServer) {
     agent.auth = function(userAuth, callback, onFailed) {
 
         return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.AUTH, userAuth, callback, onFailed);
+    };
+    
+    // quit: logout && cancel bind user on server
+    agent.quit = function(callback, onFailed) {
+
+        return agent.query(Protocol.INTERNAL_QUERY_ACTIONS.AUTH, {}, callback, onFailed);
     };
 
     // subscribe channel

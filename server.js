@@ -24,7 +24,8 @@ serverContext.socketIo = io;
 const logger = require("./lib/logger.js").getDefaultLogHandler();
 
 // actions for handling client query
-const actions = require("./lib/action.js").loadActions();
+const Action = require("./lib/action.js");
+const actions = Action.loadActions();
 
 // puser
 const Pusher = require("./lib/pusher.js");
@@ -65,10 +66,26 @@ io.on('connection', function(socket) {
         Pusher.markMessageAcked(clientId, data);
     });
 
-    // 断开连接
+    // 断开连接回调
+    // 注意：异常断开的连接（如 心跳超时），触发 disconnect 比较滞后（默认 30s）
     socket.on('disconnect', function() {
 
+        // 注销用户
+        if (clientContext.userId) {
+            logger.debug("trigger user quit", clientContext.userId);
+            Action.actionUserQuit(clientContext.userId, clientContext);
+        }
+        
+        // 清除用户注册频道
+        // channels
+        for (let channelName in clientContext.channels) {
+            logger.debug("trigger unsubscribe channel", channelName);
+            Action.actionUnsubscribe(channelName, clientContext);
+        }
+
+        // context
         Context.dropClientContext(clientId);
+
         logger.trace("disconnected #" + clientId);
     });
 
@@ -155,6 +172,7 @@ app.use(bodyParser.urlencoded({
     extended: false
 }));
 app.use(bodyParser.json());
+// 状态接口
 app.get('/', function(req, res) {
 
     res.send("OK");
@@ -168,13 +186,36 @@ app.get('/status', function(req, res) {
     res.send(JSON.stringify(statusInfo));
 });
 
+// 控制操作
+// 踢出用户
+app.post('/kickUser', function(req, res) {
+    
+    const param = req.body || {};
+    if (!param || !param.userId) {
+        logger.trace("[warning] bad kick action. no userId given");
+        res.send('fail. bad param');
+        return;
+    }
+    
+    const userId = param.userId;
+    if (!serverContext.userClients[userId]) {
+        res.send('fail. bad userId');
+        return;
+    }
+    delete serverContext.userClients[userId];
+    serverContext.userCount--;
+    
+    res.send("success");
+});
+
+// message push
 const maxPushQPS = Config.getConfig("maxPushQPS") || 10000;
 app.post('/message2client', function(req, res) {
 
     const param = req.body || {};
     if (typeof param.clientIds === 'undefined') {
         logger.trace('[warning] bad push request, no clientIds given.', param);
-        res.send('fail');
+        res.send('fail. bad param');
         return;
     }
 
@@ -197,7 +238,7 @@ app.post('/message2user', function(req, res) {
     const param = req.body || {};
     if (typeof param.userIds === 'undefined') {
         logger.trace('[warning] bad push request, no userIds given.' , param);
-        res.send('fail');
+        res.send('fail. bad param');
         return;
     }
 
@@ -221,7 +262,7 @@ app.post('/message2channel', function(req, res) {
     const param = req.body || {};
     if (typeof param.channelName === 'undefined' || typeof param.type === "undefined") {
         logger.trace('[warning] bad push request, no channelName/type given.', param);
-        res.send('fail');
+        res.send('fail. bad param');
         return;
     }
 
