@@ -1,4 +1,4 @@
-const Client = require("./client.js");
+const Client = require("../../client-demo/client.js");
 const Config = {
     wsServer: '127.0.0.1',
     wsPortBase: 8888,
@@ -6,10 +6,10 @@ const Config = {
     // 多 server 时，推荐使用 nginx 负载均衡方式 部署
     serverCount: 1,
     // 房间数
-    totalRoom: 1000,
+    totalRoom: 200,
     // 每个client发言频率 及 发言动作关闭时间 （单位：s）
     // 可以设为 0，表示都不发言
-    clientSpeakInterval: 0,
+    clientSpeakInterval: 60,
     speakLastTime: 600,
     // 批量开 测试用例 时设置
     benchId: 0,
@@ -65,6 +65,7 @@ const newClient = function(benchId) {
         userId: userId,
         name: "random #" + userId
     };
+    agent.enablePb3("../../client-demo/protocol.js", ["ChatWords"]);
     const doLogin = function() {
         reportInfo.totalQueryCount++;
         agent.auth(user, function() {
@@ -88,7 +89,7 @@ const newClient = function(benchId) {
     });
 
     agent.setMessageHandler("show", function(data) {
-        // console.log(data);
+        // console.log("show", [room, userId, {...data}]);
         reportInfo.totalMessageCount++;
     });
     
@@ -108,6 +109,8 @@ const newClient = function(benchId) {
         };
         reportInfo.totalQueryCount++;
         agent.query("speak", param);
+        // test pb3
+        // agent.query("speak", Client.Protocol.obj2pb3Data('ChatWords', param));
         reportInfo.sendSpeakCount++;
         setTimeout(autoSend, Config.clientSpeakInterval*1000);
     };

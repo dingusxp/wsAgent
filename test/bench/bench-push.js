@@ -2,6 +2,7 @@
  * 主动推送消息测试
  * 可配合 bench.js 使用（关闭 bench.js 的定时 speak）
  */
+const process = require('process');
 const Sender = require("../../lib/sender.js");
 
 const host = '127.0.0.1';
@@ -12,7 +13,7 @@ const roomNum = 100;
 // 此处使用 timeout，所以实际间隔还要加上调用推送接口的时间
 const pushInterval = 1000;
 // 总的推送批次数
-const maxPushCount = 1000;
+const maxPushCount = 100;
 
 const servers = [];
 let i = 0;
@@ -45,6 +46,7 @@ function sendOnebyOne() {
     reportInfo.pushIndex = pushIndex;
     if (pushIndex >= maxPushCount) {
         console.log('all done');
+        process.exit(0);
         return;
     }
     

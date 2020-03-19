@@ -36,7 +36,7 @@ const maxQueryQPS = Config.getConfig("maxQueryQPS") || 1000;
 io.on('connection', function(socket) {
 
     // 超过限额，拒绝连接
-    if (serverContext.clientCount >= maxConnectionCount) {
+    if (serverContext.clientCount > maxConnectionCount) {
         logger.warn("new connection refused - max connection reached!");
         socket.disconnect(true);
         return;

@@ -69,20 +69,26 @@ const doLoadPb3 = function(protoJsPath, loaderNames) {
  * @param {Object} message
  */
 const parseMessage = function(message) {
-    
+
     // pb 格式
-    if (message && message.constructor === ArrayBuffer || message.constructor === Uint8Array) {
+    // 注意：node-cli 和 浏览器 编码的 buffer 类型不一样，需要兼容之
+    if (message && (
+            (typeof Buffer !== "undefined" && message.constructor === Buffer) ||
+            (typeof ArrayBuffer !== "undefined" && message.constructor === ArrayBuffer) ||
+            (typeof Uint8Array !== "undefined" && message.constructor === Uint8Array)
+            )
+        ) {
         if (!protocolConfig.enablePb3 || !pb3.protocol || !pb3.protocol.Message) {
             console.log("parse message failed: pb3 is not enabled.");
             return false;
         }
-        console.log("message before", message);
+        // console.log("message", message);
         // format
-        if (message.constructor === ArrayBuffer) {
+        if (typeof ArrayBuffer !== "undefined" && message.constructor === ArrayBuffer && typeof Uint8Array !== "undefined") {
             message = new Uint8Array(message);
+            // console.log("message formated", message);
         }
-        console.log("message after", message);
-        
+
         const newMessage = pb3.protocol.Message.decode(message);
         newMessage["data"] = pb3Data2obj(newMessage["data"]);
         // 解构可以使 pb3 与 json 格式一致
@@ -118,8 +124,12 @@ const wrapQuery = function(query) {
     // 如果 param 满足 pb3 Data 格式，则整个信息编码为 pb3
     if (typeof query.param === "object" && query.param.loader && query.param.buffer) {
         const queryObj = pb3.protocol.Query.encode(pb3.protocol.Query.create(query)).finish();
-        const queryBuffer = queryObj.buffer.slice(queryObj.byteOffset, queryObj.byteOffset + queryObj.byteLength);
-        return queryBuffer;
+        // 兼容浏览器环境
+        if (typeof Uint8Array !== "undefined" && queryObj.constructor === Uint8Array) {
+            return queryObj.buffer.slice(queryObj.byteOffset, queryObj.byteOffset + queryObj.byteLength);
+        } else {
+            return queryObj;
+        }
     }
 
     return query;
