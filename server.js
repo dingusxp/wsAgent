@@ -32,30 +32,28 @@ const Pusher = require("./lib/pusher.js");
 
 // ======== ws service ======== //
 const maxConnectionCount = Config.getConfig("maxConnectionCount") || 10000;
-const maxQueryQPS = Config.getConfig("maxQueryQPS") || 1000;
-// 
-const maxConnectionQPS = Config.getConfig("maxConnectionQPS") || 1000;
-const connectionHitCount = 1000;
+const maxConnectionQPS = Config.getConfig("maxConnectionQPS") || 300;
 let lastConnectionHitAt = 0;
 let connectionCount = 0;
 let lockConnectionFlag = false;
+const maxQueryQPS = Config.getConfig("maxQueryQPS") || 1000;
 io.on('connection', function(socket) {
-    
+
     // lock flag
     if (lockConnectionFlag) {
-        socket.emit("_ack", {
-            status: 503
-        });
+        logger.trace("hit lock connection flag");
+        socket.disconnect(true);
         return;
     }
     
     // connection qps
     connectionCount++;
-    if (connectionCount >= connectionHitCount) {
-        const now = (+new Date);
-        // 如果 qps 超限，锁住 1s 不接受新连接
+    if (connectionCount >= maxConnectionQPS) {
+        // 如果 qps 超限（距上次触发上限时间少于1s），锁住 1s 不接受新连接
         // 说明：当前请求放行
-        if (1000 * connectionCount / (now - lastConnectionHitAt) >= maxConnectionQPS) {
+        const now = (+new Date);
+        if ((now - lastConnectionHitAt) < 1000) {
+            logger.warn("max connection qps reached!");
             lockConnectionFlag = true;
             setTimeout(() => {
                 lockConnectionFlag = false;
