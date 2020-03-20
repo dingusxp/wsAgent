@@ -312,5 +312,5 @@ app.post('/message2channel', function(req, res) {
 
 // listen
 http.listen(serverContext.serverPort, function() {
-    logger.trace(`agent server is ready: ws://${serverContext.serverHost}}/`);
+    logger.trace(`agent server is ready: ws://${serverContext.serverHost}/`);
 });
