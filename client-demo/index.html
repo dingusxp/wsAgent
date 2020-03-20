@@ -101,9 +101,9 @@
                     words: words
                 };
                 document.getElementById("content").value = "";
-                // agent.query("speak", param);
+                agent.query("speak", param);
                 // 如果启用 pb3，使用下面方式编码 param，则整个 query 将自动编码为 pb3 Query 发送
-                agent.query("speak", Protocol.obj2pb3Data('ChatWords', param));
+                // agent.query("speak", Protocol.obj2pb3Data('ChatWords', param));
             };
 
             // start chat 

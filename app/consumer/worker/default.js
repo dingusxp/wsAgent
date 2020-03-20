@@ -41,10 +41,18 @@ actions.speak = function(param) {
                 return;
             }
             serverIds.forEach(function(serverId) {
-                Sender.sendChannelMessage2Server(serverId, channelName, "show", data);
-                // or send with pb3. 
-                // const pb3Data = Protocol.obj2pb3Data("ChatWords", data);
-                // Sender.sendChannelMessage2Server(serverId, channelName, "show", pb3Data);
+                Datastore.getServerHost(serverId).then((getServerHost) => {
+                    if (!getServerHost) {
+                        Datastore.removeServerFromChannel(channelName, serverId);
+                    } else {
+                        Sender.sendChannelMessage2Server(serverHost, channelName, "show", data);
+                        // or send with pb3. 
+                        // const pb3Data = Protocol.obj2pb3Data("ChatWords", data);
+                        // Sender.sendChannelMessage2Server(serverHost, channelName, "show", pb3Data);
+                    }
+                }, () => {
+                    // fail
+                });
             });
             resolve();
         }, function(err) {

@@ -51,9 +51,18 @@ actions.speak = function(param, queryContext) {
                 // Pusher.pushMessage2Channel(channelName, Message.create('show', pb3Data));
                 return;
             }
-            // [NOTE] 这里偷懒了，直接用 serverId 作为 serverHost；
-            // 如果 serverId 自定义了，这里需要先通过 Datastore根据 serverId 获取 serverHost
-            Sender.sendChannelMessage2Server(serverId, channelName, "show", data);
+            // 通过 Datastore根据 serverId 获取 serverHost 并发送
+            // 说明：也可以偷懒，直接用 serverId 当 serverHost （默认 相同） 发送，但需要注意 Promis fail() 处理
+            Datastore.getServerHost(serverId).then((serverHost) => {
+                // server 失效
+                if (!serverHost) {
+                    Datastore.removeServerFromChannel(channelName, serverId);
+                } else {
+                    Sender.sendChannelMessage2Server(serverHost, channelName, "show", data);
+                }
+            }, () => {
+                // fail
+            });
         });
     });
 
