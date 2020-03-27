@@ -46,7 +46,7 @@ npm run start
 说明：windows（不建议用于生产环境）可使用 git bash 执行上述命令。
 
 ### 客户端：
-原生引用：
+#### 原生引用
 ```html
 <script src="https://cdn.bootcss.com/socket.io/2.0.4/socket.io.js"></script>
 <script src="./protobuf.min.js"></script><!-- // 如果需要 pb3格式协议支持 // -->
@@ -55,7 +55,7 @@ npm run start
 
 详细参见 client-demo/index.html ，
 
-vue 引用：
+#### vue 引用
 ```javascript
 // 请先用 npm 安装 socket.io-client  和 protobufjs
 // 然后引用即可
@@ -64,7 +64,7 @@ import {Agent, Protocol} from '/lib/client.js';
 
 使用上参考 client-demo/index.html，修改一些回调函数内的写法，将直接操作 dom 改为 MVVM 模式即可。
 
-node cli 引用：
+#### node cli 引用
 ```javascript
 // 请先用 npm 安装 socket.io-client  和 protobufjs
 const Client = require("/lib/client.js");
@@ -73,7 +73,4 @@ const Protocol = Client.Protocol;
 ```
 
 使用同上，参考即可。
-
-## 性能
-
 
