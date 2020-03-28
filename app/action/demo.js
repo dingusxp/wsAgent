@@ -22,6 +22,7 @@ actions.speak = function(param, queryContext) {
     
     /*
     // 异步写法：直接扔到队列，交由 worker 去处理
+    // 任务消费端 可参考 consumer 目录内代码进行扩展，亦可以使用自己熟悉的其他语言实现
     const query = {
         action: "speak",
         // 解构；pb3 格式解析后，构造函数非 Object，无法直接 JSON.stringify
@@ -31,7 +32,11 @@ actions.speak = function(param, queryContext) {
     QueryQueue.addQueryToQueue("default", query);
     return false;
     */
-
+   
+   // 直接执行 （简单 但 有损系统稳定性和平行扩展能力）
+   // 另：
+   // 介于 直接执行 和 队列方式之间，还有一种折衷方案：fork 子进程 进行具体任务逻辑处理
+   // 可以参考：test/test_childprocess.js 实现
     const channelName = (param.room || "default");
     const data = {
         name: (param.name || "noname"),
