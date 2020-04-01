@@ -4,7 +4,7 @@ const Sender = require("../../../lib/sender.js");
 const Protocol = require("../../../lib/protocol.js");
 
 // 无任务时，休息时间间隔（单位：ms）
-const REST_INTERVAL = 1000;
+const REST_INTERVAL = 500;
 
 // 碰到取任务错误是，延迟时间（单位：ms）
 const ON_ERROR_DELAY_TIME = 3000;
@@ -41,8 +41,8 @@ actions.speak = function(param) {
                 return;
             }
             serverIds.forEach(function(serverId) {
-                Datastore.getServerHost(serverId).then((getServerHost) => {
-                    if (!getServerHost) {
+                Datastore.getServerHost(serverId).then((serverHost) => {
+                    if (!serverHost) {
                         Datastore.removeServerFromChannel(channelName, serverId);
                     } else {
                         Sender.sendChannelMessage2Server(serverHost, channelName, "show", data);
@@ -64,14 +64,17 @@ actions.speak = function(param) {
 // 持续运行：取出任务分发action执行
 const consume = function() {
 
-    QueryQueue.popQueryFromQueue("default").then(function(data) {
-        if (!data) {
+    QueryQueue.popQueryFromQueue("default").then(function(info) {
+        
+        if (!info) {
             // console.log("[info] empty list. have a rest");
             setTimeout(consume, REST_INTERVAL);
             return;
         }
-        console.log("[info] process data: " + data);
-        const query = JSON.parse(data);
+
+        const id = info.id;
+        const query = info.query;
+        // console.log(`queue #${id} `, query);
         if (!query) {
             console.log("[error] bad data");
             consume();
