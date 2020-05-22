@@ -208,13 +208,39 @@ app.get('/', function(req, res) {
 
     res.send("OK");
 });
+// 服务器实例状态
 app.get('/status', function(req, res) {
-
-    // 更新信息
-    // Context.refreshServerContext();
-
-    const statusInfo = Context.getServerStatus();
-    res.send(JSON.stringify(statusInfo));
+    
+    // 默认：仅查看当前实例
+    const param = req.query || {};
+    if (!param || !param.view || param.view.toLowerCase() !== "all") {
+        const statusInfo = Context.getServerStatus();
+        res.send(JSON.stringify(statusInfo));
+        return;
+    }
+    
+    // 查看所有
+    const Datastore = require("./lib/datastore.js");
+    Datastore.getServerIds().then((serverIds) => {
+        const serverInfos = {};
+        const getServerInfoOneByOne = () => {
+            if (serverIds.length === 0) {
+                res.send(JSON.stringify(serverInfos));
+                return;
+            }
+            const serverId = serverIds.pop();
+            Datastore.getServerStatus(serverId).then((data) => {
+                serverInfos[serverId] = data;
+                getServerInfoOneByOne();
+            }, (err) => {
+                serverInfos[serverId] = "failed:" + err;
+                getServerInfoOneByOne();
+            });
+        };
+        getServerInfoOneByOne();
+    }, () => {
+        res.send("fail");
+    });
 });
 
 // 控制操作
