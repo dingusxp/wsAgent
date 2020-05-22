@@ -10,6 +10,8 @@ const Config = {
     // 每个client发言频率 及 发言动作关闭时间 （单位：s）
     // 可以设为 0，表示都不发言
     clientSpeakInterval: 60,
+    // 每个client 发言动作关闭时间（单位：s）
+    // 设为 0 表示不关闭发言
     speakLastTime: 300,
     // 批量开 测试用例 时设置
     benchId: 0,
@@ -99,7 +101,7 @@ const newClient = function(benchId) {
     }
     const autoSend = function() {
         const now = (+new Date);
-        if (now - start >= Config.speakLastTime * 1000) {
+        if (Config.speakLastTime > 0 && now - start >= Config.speakLastTime * 1000) {
             return;
         }
         const param = {
